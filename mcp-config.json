@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "omdb": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "target/omdb-mcp-server-0.0.1-SNAPSHOT.jar"
+      ],
+      "env": {
+        "OMDB_API_KEY": "your-actual-api-key-here"
+      }
+    }
+  }
+}
