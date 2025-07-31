@@ -152,7 +152,7 @@ server.port=8080
 
 # OMDB API Configuration
 omdb.api.url=https://www.omdbapi.com/
-omdb.api.key=${OMDB_API_KEY:your-api-key-here}}
+omdb.api.key=${OMDB_API_KEY:your-api-key-here}
 
 # MCP Server Configuration
 mcp.server.name=OMDB Movie Database Server
