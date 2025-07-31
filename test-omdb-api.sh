@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Test OMDB API directly to verify it works
-API_KEY="3a38d866"
+API_KEY=YOUR-API-KEY
 
 echo "Testing OMDB API directly..."
 echo "============================="
