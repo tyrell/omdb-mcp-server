@@ -19,7 +19,7 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 
 1. **Clone and build the project**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/tyrell/omdb-mcp-server
    cd omdb-mcp-server
    mvn clean compile
    ```
