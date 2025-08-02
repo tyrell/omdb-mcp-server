@@ -7,6 +7,11 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: read
+  packages: write
+  security-events: write
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
@@ -14,9 +19,6 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
     
     steps:
     - name: Checkout repository
@@ -56,11 +58,13 @@ jobs:
         cache-to: type=gha,mode=max
     
     - name: Run Trivy vulnerability scanner
-      uses: aquasecurity/trivy-action@master
+      uses: aquasecurity/trivy-action@0.28.0
       with:
         image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         format: 'sarif'
         output: 'trivy-results.sarif'
+        severity: 'CRITICAL,HIGH'
+        exit-code: '0'
       if: github.event_name != 'pull_request'
     
     - name: Upload Trivy scan results to GitHub Security tab
