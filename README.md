@@ -2,7 +2,16 @@
 
 [![CI](https://github.com/tyrell/omdb-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/ci.yml)
 [![Build](https://github.com/tyrell/omdb-mcp-server/actions/workflows/build.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/build.yml)
-[![Docker](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml)
+[![Docker](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml/## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 📞 Support
+
+- 🐛 **Bug Reports**: [GitHub Issues](https://github.com/tyrell/omdb-mcp-server/issues)
+- 💡 **Feature Requests**: [GitHub Discussions](https://github.com/tyrell/omdb-mcp-server/discussions)
+- 📖 **Documentation**: [Project Wiki](https://github.com/tyrell/omdb-mcp-server/wiki)
+- 🔒 **Security Issues**: Report security issues privately via GitHub Securitys://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml)
 [![Release](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml)
 [![codecov](https://codecov.io/gh/tyrell/omdb-mcp-server/branch/main/graph/badge.svg)](https://codecov.io/gh/tyrell/omdb-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
@@ -109,6 +118,43 @@ services:
       retries: 3
 ```
 
+### Detailed Configuration
+
+The server can be configured using environment variables or `application.properties`:
+
+#### Core Configuration
+```properties
+# Server Configuration
+server.port=8080
+
+# OMDB API Configuration
+omdb.api.url=https://www.omdbapi.com/
+omdb.api.key=${OMDB_API_KEY:your-api-key-here}
+
+# MCP Server Configuration
+mcp.server.name=OMDB Movie Database Server
+mcp.server.version=1.0.0
+mcp.server.description=MCP Server for searching and retrieving movie information from OMDB API
+
+# Logging Configuration
+logging.level.co.tyrell.omdb_mcp_server=INFO
+logging.level.root=WARN
+
+# Actuator (Health Checks)
+management.endpoints.web.exposure.include=health,info
+management.endpoint.health.show-details=when-authorized
+```
+
+#### Advanced Configuration
+```properties
+# WebClient Configuration
+spring.webflux.timeout=30s
+spring.reactor.netty.pool.max-connections=100
+
+# JVM Tuning (for production)
+JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
+```
+
 ## MCP Tools
 
 ### 1. search_movies
@@ -181,127 +227,18 @@ Get detailed information about a movie by IMDB ID.
 }
 ```
 
-## MCP Protocol Implementation
-
-### Initialize
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "1",
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {},
-    "clientInfo": {
-      "name": "example-client",
-      "version": "1.0.0"
-    }
-  }
-}
-```
-
-### List Tools
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "2",
-  "method": "tools/list"
-}
-```
-
-## Configuration
-
-The server can be configured using environment variables or `application.properties`:
-
-### Core Configuration
-```properties
-# Server Configuration
-server.port=8080
-
-# OMDB API Configuration
-omdb.api.url=https://www.omdbapi.com/
-omdb.api.key=${OMDB_API_KEY:your-api-key-here}
-
-# MCP Server Configuration
-mcp.server.name=OMDB Movie Database Server
-mcp.server.version=1.0.0
-mcp.server.description=MCP Server for searching and retrieving movie information from OMDB API
-
-# Logging Configuration
-logging.level.co.tyrell.omdb_mcp_server=INFO
-logging.level.root=WARN
-
-# Actuator (Health Checks)
-management.endpoints.web.exposure.include=health,info
-management.endpoint.health.show-details=when-authorized
-```
-
-### Advanced Configuration
-```properties
-# WebClient Configuration
-spring.webflux.timeout=30s
-spring.reactor.netty.pool.max-connections=100
-
-# JVM Tuning (for production)
-JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
-```
-
 ## 🧪 Testing & Validation
 
-### Health Check
+### Using the Test Script
+
+A test script is provided to validate the MCP server functionality:
+
 ```bash
-curl http://localhost:8080/actuator/health
+# Run the included test script
+./test-mcp-server.sh
 ```
 
-### MCP Protocol Testing
-
-**Initialize the MCP connection**:
-```bash
-curl -X POST http://localhost:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "1",
-    "method": "initialize",
-    "params": {
-      "protocolVersion": "2024-11-05",
-      "capabilities": {},
-      "clientInfo": {
-        "name": "test-client",
-        "version": "1.0.0"
-      }
-    }
-  }'
-```
-
-**List available tools**:
-```bash
-curl -X POST http://localhost:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "2",
-    "method": "tools/list"
-  }'
-```
-
-**Search for movies**:
-```bash
-curl -X POST http://localhost:8080/mcp \
-  -H "Content-Type: application/json" \
-  -d '{
-    "jsonrpc": "2.0",
-    "id": "3",
-    "method": "tools/call",
-    "params": {
-      "name": "search_movies",
-      "arguments": {
-        "title": "The Matrix",
-        "year": "1999"
-      }
-    }
-  }'
-```
+This script will test all MCP endpoints including initialization, tool listing, and all three movie search tools.
 
 ### 🔍 Development & Debugging
 
@@ -423,7 +360,7 @@ Common error codes:
 - **🐳 Docker**: Containerized deployment with multi-stage builds
 - **🧪 JUnit 5**: Comprehensive testing framework
 - **📊 JaCoCo**: Code coverage analysis
-- **🔒 Spring Security**: Security scanning and best practices
+- **🔒 Security Scanning**: Automated vulnerability detection
 
 ### Architecture Overview
 ```
@@ -461,7 +398,7 @@ Common error codes:
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+We welcome contributions! Please follow these guidelines:
 
 ### Development Setup
 1. **Fork the repository**
@@ -492,12 +429,11 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## � Support
 
-- [Open Movie Database (OMDB)](http://www.omdbapi.com/) for providing the movie data API
-- [Model Context Protocol](https://spec.modelcontextprotocol.io/) for the protocol specification
-- [Spring Boot](https://spring.io/projects/spring-boot) for the excellent framework
-- All contributors who help improve this project
+- **Issues**: [GitHub Issues](https://github.com/tyrell/omdb-mcp-server/issues)
+- **Discussions**: [GitHub Discussions](https://github.com/tyrell/omdb-mcp-server/discussions)
+- **Security**: Report security issues privately via GitHub Security
 
 ## 📞 Support
 
