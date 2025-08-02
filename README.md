@@ -509,17 +509,17 @@ Common error codes:
                                                 └─────────────────┘  │
                                                         │            │
                                                         ▼            │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐  │
-│ Cache Manager   │───▶│  Caffeine Cache  │    │   OMDB API      │  │
-│   (Statistics)  │    │  (In-Memory)     │    │ (omdbapi.com)   │  │
-└─────────────────┘    └──────────────────┘    └─────────────────┘  │
-        │                       ▲                       │           │
-        │                       └───── Cache Miss ──────┘           │
-        ▼                                                           │
-┌─────────────────┐                                                 │
-│ Cache Endpoints │                                                 │
-│ /cache/stats    │                                                 │
-│ /cache/clear    │                              Cache Hit ─────────┘
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐   │
+│ Cache Manager   │───▶│  Caffeine Cache  │    │   OMDB API      │   │
+│   (Statistics)  │    │  (In-Memory)     │    │ (omdbapi.com)   │   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘   │
+        │                       ▲                       │            │
+        │                       └───── Cache Miss ──────┘            │
+        ▼                                                            │
+┌─────────────────┐                                                  │
+│ Cache Endpoints │                                                  │
+│ /cache/stats    │                                                  │
+│ /cache/clear    │                              Cache Hit ─────────-┘
 └─────────────────┘
 ```
 
