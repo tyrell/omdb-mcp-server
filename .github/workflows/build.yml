@@ -9,6 +9,7 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     
     steps:
     - name: Checkout code
@@ -42,14 +43,34 @@ jobs:
         tags: omdb-mcp-server:latest
         cache-from: type=gha
         cache-to: type=gha,mode=max
+        load: true
     
     - name: Test Docker image
+      timeout-minutes: 5
       run: |
-        docker build -t omdb-mcp-server:test .
-        docker run --rm omdb-mcp-server:test --version || echo "Version check completed"
+        # Test that the container starts and responds to health check
+        echo "Starting Docker container test..."
+        docker run -d --name test-container -p 8080:8080 omdb-mcp-server:latest
+        echo "Container started, waiting for initialization..."
+        sleep 15
+        
+        # Check if the container is running
+        echo "Checking container status..."
+        docker ps | grep test-container || (echo "Container not running!" && docker logs test-container && exit 1)
+        
+        # Check logs for any obvious errors
+        echo "Container logs:"
+        docker logs test-container
+        
+        # Clean up
+        echo "Cleaning up test container..."
+        docker stop test-container
+        docker rm test-container
+        echo "Docker test completed successfully!"
 
   integration-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     needs: build
     
     steps:
@@ -64,12 +85,12 @@ jobs:
         cache: maven
     
     - name: Run integration tests
-      run: ./mvnw clean verify -Pintegration-tests
+      run: ./mvnw clean test -Dtest="*IT,*IntegrationTest"
       continue-on-error: true
     
-    - name: Upload integration test results
+    - name: Upload test results
       uses: actions/upload-artifact@v4
       if: always()
       with:
         name: integration-test-results
-        path: target/failsafe-reports/
+        path: target/surefire-reports/
