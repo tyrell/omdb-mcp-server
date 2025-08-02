@@ -20,6 +20,13 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 - **Get Movie by IMDB ID**: Get detailed information using IMDB ID
 - **Rich Metadata**: Access to ratings, cast, plot, awards, and more
 
+### ⚡ Intelligent Caching System
+- **Automatic Caching**: All OMDB API responses are automatically cached to reduce API calls
+- **Configurable TTL**: Cache entries expire after 1 hour by default (configurable)
+- **Memory Efficient**: Maximum cache size of 1000 entries with LRU eviction policy
+- **Performance Monitoring**: Built-in cache statistics and management endpoints
+- **Rate Limit Protection**: Helps stay within OMDB API usage limits and reduces costs
+
 ### 🔌 MCP Protocol Compliance
 - **MCP 2024-11-05**: Fully implements the latest MCP specification
 - **JSON-RPC 2.0**: Standard protocol for communication
@@ -90,6 +97,23 @@ The server will start on `http://localhost:8080`
 - `OMDB_API_KEY`: Your OMDB API key (required)
 - `SERVER_PORT`: Server port (default: 8080)
 - `MCP_SERVER_NAME`: MCP server name (default: "OMDB Movie Database Server")
+
+### Cache Configuration
+The server includes intelligent caching to reduce OMDB API calls:
+
+```properties
+# Cache Configuration (default values shown)
+cache.expire-after-write=1h        # Cache TTL (Time To Live)
+cache.maximum-size=1000           # Maximum number of cached entries
+cache.record-stats=true           # Enable cache statistics
+```
+
+Cache management endpoints:
+- `GET /cache/stats` - View cache performance statistics
+- `DELETE /cache/clear` - Clear all caches
+- `DELETE /cache/clear/{cacheName}` - Clear specific cache
+
+See [CACHING.md](CACHING.md) for detailed caching documentation.
 
 ### Docker Compose
 ```yaml
@@ -226,9 +250,15 @@ mcp.server.name=OMDB Movie Database Server
 mcp.server.version=1.0.0
 mcp.server.description=MCP Server for searching and retrieving movie information from OMDB API
 
+# Cache Configuration
+cache.expire-after-write=1h        # Cache TTL (Time To Live)
+cache.maximum-size=1000           # Maximum number of cached entries
+cache.record-stats=true           # Enable cache statistics
+
 # Logging Configuration
 logging.level.co.tyrell.omdb_mcp_server=INFO
 logging.level.root=WARN
+logging.level.org.springframework.cache=DEBUG  # For cache debugging
 
 # Actuator (Health Checks)
 management.endpoints.web.exposure.include=health,info
@@ -251,6 +281,41 @@ JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
 ```bash
 curl http://localhost:8080/actuator/health
 ```
+
+### Cache Performance Testing
+**Check cache statistics**:
+```bash
+curl http://localhost:8080/cache/stats
+```
+
+**Clear cache for testing**:
+```bash
+# Clear all caches
+curl -X DELETE http://localhost:8080/cache/clear
+
+# Clear specific cache
+curl -X DELETE http://localhost:8080/cache/clear/movieSearch
+```
+
+**Test cache effectiveness**:
+1. Make an initial request (cache miss):
+   ```bash
+   time curl -X POST http://localhost:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"search_movies","arguments":{"title":"The Matrix"}}}'
+   ```
+
+2. Repeat the same request (cache hit - should be much faster):
+   ```bash
+   time curl -X POST http://localhost:8080/mcp \
+     -H "Content-Type: application/json" \
+     -d '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"search_movies","arguments":{"title":"The Matrix"}}}'
+   ```
+
+3. Check cache statistics to see hit/miss ratios:
+   ```bash
+   curl http://localhost:8080/cache/stats
+   ```
 
 ### MCP Protocol Testing
 
@@ -307,6 +372,11 @@ curl -X POST http://localhost:8080/mcp \
 **Run tests**:
 ```bash
 ./mvnw test
+```
+
+**Run cache-specific tests**:
+```bash
+./mvnw test -Dtest="*Cache*"
 ```
 
 **Generate test coverage report**:
@@ -419,7 +489,8 @@ Common error codes:
 - **☕ Java 21**: Modern Java with latest features
 - **🍃 Spring Boot 3.5.4**: Production-ready application framework
 - **⚡ Spring WebFlux**: Reactive programming for better performance
-- **🐳 Docker**: Containerized deployment with multi-stage builds
+- **�️ Spring Cache + Caffeine**: High-performance in-memory caching with automatic management
+- **�🐳 Docker**: Containerized deployment with multi-stage builds
 - **🧪 JUnit 5**: Comprehensive testing framework
 - **📊 JaCoCo**: Code coverage analysis
 - **🔒 Spring Security**: Security scanning and best practices
@@ -433,21 +504,31 @@ Common error codes:
                                                         │
                                                         ▼
                                                 ┌─────────────────┐
-                                                │  OMDB Service   │
-                                                │ (External API)  │
-                                                └─────────────────┘
-                                                        │
-                                                        ▼
-                                                ┌─────────────────┐
-                                                │   OMDB API      │
-                                                │ (omdbapi.com)   │
-                                                └─────────────────┘
+                                                │  OMDB Service   │◀─┐
+                                                │ (External API)  │  │
+                                                └─────────────────┘  │
+                                                        │            │
+                                                        ▼            │
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐  │
+│ Cache Manager   │───▶│  Caffeine Cache  │    │   OMDB API      │  │
+│   (Statistics)  │    │  (In-Memory)     │    │ (omdbapi.com)   │  │
+└─────────────────┘    └──────────────────┘    └─────────────────┘  │
+        │                       ▲                       │           │
+        │                       └───── Cache Miss ──────┘           │
+        ▼                                                           │
+┌─────────────────┐                                                 │
+│ Cache Endpoints │                                                 │
+│ /cache/stats    │                                                 │
+│ /cache/clear    │                              Cache Hit ─────────┘
+└─────────────────┘
 ```
 
 ### Key Components
 - **🎮 McpController**: HTTP endpoint handling and request routing
 - **🧠 McpService**: MCP protocol implementation and business logic
-- **🌐 OmdbService**: OMDB API integration with reactive WebClient
+- **🌐 OmdbService**: OMDB API integration with reactive WebClient and intelligent caching
+- **⚡ Cache Layer**: Caffeine-based in-memory caching with configurable TTL and LRU eviction
+- **📊 Cache Management**: REST endpoints for cache statistics and management
 - **📋 Model Classes**: Data structures for MCP and OMDB responses
 - **⚙️ Configuration**: Spring Boot auto-configuration and properties
 
@@ -503,4 +584,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/tyrell/omdb-mcp-server/issues)
 - 💡 **Feature Requests**: [GitHub Discussions](https://github.com/tyrell/omdb-mcp-server/discussions)
 - 📖 **Documentation**: [Project Wiki](https://github.com/tyrell/omdb-mcp-server/wiki)
+- ⚡ **Caching Guide**: [CACHING.md](CACHING.md) - Detailed caching implementation documentation
 - 🔒 **Security Issues**: See [SECURITY.md](SECURITY.md)

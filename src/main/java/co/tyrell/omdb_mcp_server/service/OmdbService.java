@@ -1,10 +1,12 @@
 package co.tyrell.omdb_mcp_server.service;
 
+import co.tyrell.omdb_mcp_server.config.CacheConfig;
 import co.tyrell.omdb_mcp_server.config.OmdbProperties;
 import co.tyrell.omdb_mcp_server.model.omdb.OmdbMovie;
 import co.tyrell.omdb_mcp_server.model.omdb.OmdbSearchResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -24,8 +26,9 @@ public class OmdbService {
     /**
      * Search for movies by title
      */
+    @Cacheable(value = CacheConfig.MOVIE_SEARCH_CACHE, key = "#title + '_' + (#year != null ? #year : 'null') + '_' + (#type != null ? #type : 'null')")
     public Mono<OmdbSearchResponse> searchMovies(String title, String year, String type) {
-        log.debug("Searching movies with title: {}, year: {}, type: {}", title, year, type);
+        log.debug("Searching movies with title: {}, year: {}, type: {} (cache miss)", title, year, type);
         
         return webClient.get()
                 .uri(uriBuilder -> {
@@ -54,8 +57,9 @@ public class OmdbService {
     /**
      * Get movie details by title
      */
+    @Cacheable(value = CacheConfig.MOVIE_BY_TITLE_CACHE, key = "#title + '_' + (#year != null ? #year : 'null') + '_' + (#plot != null ? #plot : 'full')")
     public Mono<OmdbMovie> getMovieByTitle(String title, String year, String plot) {
-        log.debug("Getting movie by title: {}, year: {}, plot: {}", title, year, plot);
+        log.debug("Getting movie by title: {}, year: {}, plot: {} (cache miss)", title, year, plot);
         
         return webClient.get()
                 .uri(uriBuilder -> {
@@ -86,8 +90,9 @@ public class OmdbService {
     /**
      * Get movie details by IMDB ID
      */
+    @Cacheable(value = CacheConfig.MOVIE_BY_IMDB_ID_CACHE, key = "#imdbId + '_' + (#plot != null ? #plot : 'full')")
     public Mono<OmdbMovie> getMovieByImdbId(String imdbId, String plot) {
-        log.debug("Getting movie by IMDB ID: {}, plot: {}", imdbId, plot);
+        log.debug("Getting movie by IMDB ID: {}, plot: {} (cache miss)", imdbId, plot);
         
         return webClient.get()
                 .uri(uriBuilder -> {
