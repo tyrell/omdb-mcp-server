@@ -5,7 +5,7 @@
 [![Docker](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml)
 [![Release](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
+[![Java](https://img.shields.io/badge/Java-23-orange.svg)](https://openjdk.org/projects/jdk/23/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
 [![Docker](https://img.shields.io/badge/Docker-Available-blue.svg)](https://github.com/tyrell/omdb-mcp-server/pkgs/container/omdb-mcp-server)
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-purple.svg)](https://spec.modelcontextprotocol.io/specification/)
@@ -49,7 +49,7 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 
 ## Prerequisites
 
-- Java 21 or higher
+- Java 23 or higher
 - Maven 3.6 or higher
 - OMDB API Key (free registration at http://www.omdbapi.com/apikey.aspx)
 
@@ -410,7 +410,7 @@ This project includes comprehensive GitHub Actions workflows:
 
 2. **Manual JAR Deployment**:
    - Download from [GitHub Releases](https://github.com/tyrell/omdb-mcp-server/releases)
-   - Deploy on any Java 21+ environment
+   - Deploy on any Java 23+ environment
 
 3. **Kubernetes**:
    ```yaml
@@ -486,11 +486,11 @@ Common error codes:
 ## 🏗️ Architecture & Technology Stack
 
 ### Technology Stack
-- **☕ Java 21**: Modern Java with latest features
+- **☕ Java 23**: Modern Java with latest features
 - **🍃 Spring Boot 3.5.4**: Production-ready application framework
 - **⚡ Spring WebFlux**: Reactive programming for better performance
-- **�️ Spring Cache + Caffeine**: High-performance in-memory caching with automatic management
-- **�🐳 Docker**: Containerized deployment with multi-stage builds
+- **🗄️ Spring Cache + Caffeine**: High-performance in-memory caching with automatic management
+- **🐳 Docker**: Containerized deployment with multi-stage builds
 - **🧪 JUnit 5**: Comprehensive testing framework
 - **📊 JaCoCo**: Code coverage analysis
 - **🔒 Spring Security**: Security scanning and best practices
@@ -552,7 +552,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
    ```
 3. **Set up development environment**:
    ```bash
-   # Install Java 21 and Maven
+   # Install Java 23 and Maven
    ./mvnw clean compile
    export OMDB_API_KEY=your-test-api-key
    ```
