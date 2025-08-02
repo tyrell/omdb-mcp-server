@@ -4,7 +4,6 @@
 [![Build](https://github.com/tyrell/omdb-mcp-server/actions/workflows/build.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/build.yml)
 [![Docker](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml)
 [![Release](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml)
-[![codecov](https://codecov.io/gh/tyrell/omdb-mcp-server/branch/main/graph/badge.svg)](https://codecov.io/gh/tyrell/omdb-mcp-server)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Java](https://img.shields.io/badge/Java-21-orange.svg)](https://openjdk.org/projects/jdk/21/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
