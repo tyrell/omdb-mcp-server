@@ -44,7 +44,7 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 - **GitHub Actions**: Complete CI/CD pipeline
 - **Automated Releases**: Tagged releases with artifacts
 - **Security Scanning**: Vulnerability detection and reporting
-- **Documentation**: Auto-generated API documentation
+- **OpenAPI Documentation**: Interactive API documentation with Swagger UI
 - **Code Quality**: Automated dependency updates and code analysis
 
 ## Prerequisites
@@ -90,6 +90,8 @@ docker run -p 8080:8080 -e OMDB_API_KEY=your-api-key ghcr.io/tyrell/omdb-mcp-ser
    ```
 
 The server will start on `http://localhost:8080`
+
+**📖 View API Documentation**: Once running, access the interactive API documentation at http://localhost:8080/swagger-ui/index.html
 
 ## 🔧 Configuration
 
@@ -440,6 +442,369 @@ This project includes comprehensive GitHub Actions workflows:
                  name: omdb-secret
                  key: api-key
    ```
+
+## 📖 OpenAPI Documentation
+
+The OMDB MCP Server provides comprehensive OpenAPI documentation for both the MCP protocol endpoints and administrative endpoints.
+
+### Access Documentation
+
+When the server is running, you can access the interactive API documentation at:
+
+- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
+- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
+
+### API Endpoints
+
+#### MCP Protocol Endpoints
+
+**POST /mcp** - Handle MCP requests (JSON-RPC 2.0)
+- **Purpose**: Main endpoint for Model Context Protocol communication
+- **Content-Type**: application/json
+- **Methods Supported**: 
+  - `initialize` - Initialize MCP connection
+  - `tools/list` - Get available tools
+  - `tools/call` - Execute tool operations
+
+**GET /mcp/health** - Health check endpoint
+- **Purpose**: Verify the MCP server is running
+- **Response**: Plain text status message
+
+#### Cache Management Endpoints
+
+**GET /cache/stats** - Get cache statistics
+- **Purpose**: Retrieve detailed cache performance metrics
+- **Response**: JSON with hit rates, miss rates, and entry counts
+
+**DELETE /cache/clear** - Clear all caches
+- **Purpose**: Remove all cached entries from all caches
+- **Response**: JSON success message
+
+**DELETE /cache/clear/{cacheName}** - Clear specific cache
+- **Purpose**: Remove all entries from the specified cache
+- **Parameters**: 
+  - `cacheName` (path) - Name of the cache to clear
+- **Response**: JSON success/error message
+
+### OpenAPI Specification
+
+<details>
+<summary>Complete OpenAPI 3.0 Specification (Click to expand)</summary>
+
+```yaml
+openapi: 3.0.1
+info:
+  title: OMDB MCP Server API
+  description: |
+    A Model Context Protocol (MCP) Server that provides access to the Open Movie Database (OMDB) API.
+    
+    This server allows AI assistants and other MCP clients to search for movies and retrieve detailed movie information.
+    
+    ## Features
+    - **Movie Search**: Search for movies by title, year, and type
+    - **Movie Details**: Get detailed information about specific movies
+    - **IMDB Integration**: Retrieve movies by IMDB ID
+    - **Intelligent Caching**: Automatic caching of OMDB API responses
+    - **MCP Compliance**: Full implementation of the Model Context Protocol 2024-11-05
+    
+    ## MCP Protocol
+    The server implements the JSON-RPC 2.0 based Model Context Protocol for communication with AI assistants.
+    Supported methods:
+    - `initialize`: Initialize the MCP connection
+    - `tools/list`: Get available tools
+    - `tools/call`: Execute tool operations
+    
+    ## Available Tools
+    - `search_movies`: Search for movies by title
+    - `get_movie_details`: Get detailed movie information by title
+    - `get_movie_by_imdb_id`: Get movie information by IMDB ID
+  contact:
+    name: OMDB MCP Server
+    url: https://github.com/tyrell/omdb-mcp-server
+  license:
+    name: MIT License
+    url: https://opensource.org/licenses/MIT
+  version: 1.0.0
+servers:
+- url: http://localhost:8080
+  description: Default server
+paths:
+  /mcp:
+    post:
+      tags:
+      - MCP Controller
+      summary: Handle MCP Request
+      description: Processes Model Context Protocol requests including tool discovery and movie search operations
+      operationId: handleMcpRequest
+      requestBody:
+        description: MCP JSON-RPC 2.0 request
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpRequest'
+            examples:
+              Initialize:
+                summary: Initialize MCP connection
+                value:
+                  jsonrpc: "2.0"
+                  id: "1"
+                  method: initialize
+                  params:
+                    protocolVersion: "2024-11-05"
+                    capabilities: {}
+                    clientInfo:
+                      name: example-client
+                      version: 1.0.0
+              List Tools:
+                summary: Get available tools
+                value:
+                  jsonrpc: "2.0"
+                  id: "2"
+                  method: tools/list
+                  params: {}
+              Search Movies:
+                summary: Search for movies
+                value:
+                  jsonrpc: "2.0"
+                  id: "3"
+                  method: tools/call
+                  params:
+                    name: search_movies
+                    arguments:
+                      title: The Matrix
+                      year: "1999"
+        required: true
+      responses:
+        "200":
+          description: MCP response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/McpResponse'
+              examples:
+                Success Response:
+                  summary: Successful MCP response
+                  value:
+                    jsonrpc: "2.0"
+                    id: "3"
+                    result:
+                      content:
+                      - type: text
+                        text: |
+                          🎬 The Matrix (1999)
+                          
+                          Rating: R
+                          Runtime: 136 min
+                          Genre: Action, Sci-Fi
+                          Director: Lana Wachowski, Lilly Wachowski
+                          Cast: Keanu Reeves, Laurence Fishburne, Carrie-Anne Moss
+                          IMDB Rating: 8.7/10
+                          
+                          Plot: When a beautiful stranger leads computer hacker Neo to a forbidding underworld, he discovers the shocking truth--the life he knows is the elaborate deception of an evil cyber-intelligence.
+  /mcp/health:
+    get:
+      tags:
+      - MCP Controller
+      summary: Health Check
+      description: Simple health check endpoint to verify the MCP server is running
+      operationId: health
+      responses:
+        "200":
+          description: Server is healthy
+          content:
+            text/plain:
+              examples:
+                default:
+                  value: MCP Server is running
+  /cache/stats:
+    get:
+      tags:
+      - Cache Controller
+      summary: Get Cache Statistics
+      description: Returns detailed statistics for all active caches including hit rates, miss rates, and entry counts
+      operationId: getCacheStats
+      responses:
+        "200":
+          description: Cache statistics retrieved successfully
+          content:
+            application/json:
+              examples:
+                default:
+                  value:
+                    omdbMovies:
+                      size: 42
+                      hitCount: 156
+                      missCount: 48
+                      hitRate: 0.764706
+                      missRate: 0.235294
+                      requestCount: 204
+                      loadCount: 48
+                      evictionCount: 0
+  /cache/clear:
+    delete:
+      tags:
+      - Cache Controller
+      summary: Clear All Caches
+      description: Removes all entries from all active caches
+      operationId: clearAllCaches
+      responses:
+        "200":
+          description: All caches cleared successfully
+          content:
+            application/json:
+              examples:
+                default:
+                  value:
+                    message: All caches cleared successfully
+  /cache/clear/{cacheName}:
+    delete:
+      tags:
+      - Cache Controller
+      summary: Clear Specific Cache
+      description: Removes all entries from the specified cache
+      operationId: clearCache
+      parameters:
+      - name: cacheName
+        in: path
+        description: Name of the cache to clear
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: Cache operation completed
+          content:
+            application/json:
+              examples:
+                Success:
+                  summary: Cache cleared successfully
+                  value:
+                    message: Cache 'omdbMovies' cleared successfully
+                Not Found:
+                  summary: Cache not found
+                  value:
+                    error: Cache 'nonexistent' not found
+components:
+  schemas:
+    McpRequest:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: JSON-RPC version
+          example: "2.0"
+          default: "2.0"
+        id:
+          type: string
+          description: Request identifier
+          example: "1"
+        method:
+          type: string
+          description: Method name
+          example: tools/call
+          enum:
+          - initialize
+          - tools/list
+          - tools/call
+        params:
+          type: object
+          additionalProperties:
+            type: object
+          description: Method parameters
+          example:
+            name: search_movies
+            arguments:
+              title: The Matrix
+      description: Model Context Protocol JSON-RPC 2.0 request
+    McpResponse:
+      type: object
+      properties:
+        jsonrpc:
+          type: string
+          description: JSON-RPC version
+          example: "2.0"
+          default: "2.0"
+        id:
+          type: string
+          description: Request identifier
+          example: "1"
+        result:
+          type: object
+          description: Response result (present on success)
+        error:
+          $ref: '#/components/schemas/McpError'
+      description: Model Context Protocol JSON-RPC 2.0 response
+    McpError:
+      type: object
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+          example: -32601
+        message:
+          type: string
+          description: Error message
+          example: Method not found
+        data:
+          type: object
+          description: Additional error data
+      description: MCP error details
+```
+
+</details>
+
+### Example Usage
+
+#### Initialize MCP Connection
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "1",
+    "method": "initialize",
+    "params": {
+      "protocolVersion": "2024-11-05",
+      "capabilities": {},
+      "clientInfo": {
+        "name": "example-client",
+        "version": "1.0.0"
+      }
+    }
+  }'
+```
+
+#### Get Available Tools
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "2",
+    "method": "tools/list",
+    "params": {}
+  }'
+```
+
+#### Search for Movies
+```bash
+curl -X POST http://localhost:8080/mcp \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": "3",
+    "method": "tools/call",
+    "params": {
+      "name": "search_movies",
+      "arguments": {
+        "title": "The Matrix",
+        "year": "1999",
+        "type": "movie"
+      }
+    }
+  }'
+```
 
 ## API Response Format
 
