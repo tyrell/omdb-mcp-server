@@ -12,6 +12,66 @@
 
 A Model Context Protocol (MCP) Server that provides access to the Open Movie Database (OMDB) API. This server allows AI assistants and other MCP clients to search for movies and retrieve detailed movie information.
 
+## Table of Contents
+
+- [OMDB MCP Server](#omdb-mcp-server)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+    - [🎬 Movie Database Access](#-movie-database-access)
+    - [⚡ Intelligent Caching System](#-intelligent-caching-system)
+    - [🔌 MCP Protocol Compliance](#-mcp-protocol-compliance)
+    - [🚀 Production Ready](#-production-ready)
+    - [🔧 Developer Experience](#-developer-experience)
+  - [🏗️ Architecture \& Technology Stack](#️-architecture--technology-stack)
+    - [Technology Stack](#technology-stack)
+    - [Architecture Overview](#architecture-overview)
+    - [Key Components](#key-components)
+    - [Security Features](#security-features)
+  - [Prerequisites](#prerequisites)
+  - [Quick Start](#quick-start)
+    - [🐳 Using Docker (Recommended)](#-using-docker-recommended)
+    - [📦 Using Pre-built JAR](#-using-pre-built-jar)
+    - [🔨 Building from Source](#-building-from-source)
+  - [🔧 Configuration](#-configuration)
+    - [Environment Variables](#environment-variables)
+    - [Cache Configuration](#cache-configuration)
+    - [Docker Compose](#docker-compose)
+  - [MCP Tools](#mcp-tools)
+    - [1. search\_movies](#1-search_movies)
+    - [2. get\_movie\_details](#2-get_movie_details)
+    - [3. get\_movie\_by\_imdb\_id](#3-get_movie_by_imdb_id)
+  - [MCP Protocol Implementation](#mcp-protocol-implementation)
+    - [Initialize](#initialize)
+    - [List Tools](#list-tools)
+  - [Configuration](#configuration)
+    - [Core Configuration](#core-configuration)
+    - [Advanced Configuration](#advanced-configuration)
+  - [🧪 Testing \& Validation](#-testing--validation)
+    - [Health Check](#health-check)
+    - [Cache Performance Testing](#cache-performance-testing)
+    - [MCP Protocol Testing](#mcp-protocol-testing)
+    - [🔍 Development \& Debugging](#-development--debugging)
+  - [🚀 CI/CD \& Deployment](#-cicd--deployment)
+    - [Deployment Options](#deployment-options)
+  - [📖 OpenAPI Documentation](#-openapi-documentation)
+    - [Access Documentation](#access-documentation)
+    - [API Endpoints](#api-endpoints)
+      - [MCP Protocol Endpoints](#mcp-protocol-endpoints)
+      - [Cache Management Endpoints](#cache-management-endpoints)
+    - [OpenAPI Specification](#openapi-specification)
+    - [Example Usage](#example-usage)
+      - [Initialize MCP Connection](#initialize-mcp-connection)
+      - [Get Available Tools](#get-available-tools)
+      - [Search for Movies](#search-for-movies)
+  - [API Response Format](#api-response-format)
+  - [Error Handling](#error-handling)
+  - [🤝 Contributing](#-contributing)
+    - [Development Setup](#development-setup)
+    - [Code Style](#code-style)
+  - [📄 License](#-license)
+  - [🙏 Acknowledgments](#-acknowledgments)
+  - [📞 Support](#-support)
+
 ## Features
 
 ### 🎬 Movie Database Access
@@ -46,6 +106,62 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 - **Security Scanning**: Vulnerability detection and reporting
 - **OpenAPI Documentation**: Interactive API documentation with Swagger UI
 - **Code Quality**: Automated dependency updates and code analysis
+
+## 🏗️ Architecture & Technology Stack
+
+### Technology Stack
+- **☕ Java 23**: Modern Java with latest features
+- **🍃 Spring Boot 3.5.4**: Production-ready application framework
+- **⚡ Spring WebFlux**: Reactive programming for better performance
+- **🗄️ Spring Cache + Caffeine**: High-performance in-memory caching with automatic management
+- **🐳 Docker**: Containerized deployment with multi-stage builds
+- **🧪 JUnit 5**: Comprehensive testing framework
+- **📊 JaCoCo**: Code coverage analysis
+- **🔒 Spring Security**: Security scanning and best practices
+
+### Architecture Overview
+```
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
+│   MCP Client    │───▶│  MCP Controller  │───▶│   MCP Service   │
+│  (AI Assistant) │    │  (REST Layer)    │    │ (Protocol Impl) │
+└─────────────────┘    └──────────────────┘    └─────────────────┘
+                                                        │
+                                                        ▼
+                                                ┌─────────────────┐
+                                                │  OMDB Service   │◀─┐
+                                                │ (External API)  │  │
+                                                └─────────────────┘  │
+                                                        │            │
+                                                        ▼            │
+┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐   │
+│ Cache Manager   │───▶│  Caffeine Cache  │    │   OMDB API      │   │
+│   (Statistics)  │    │  (In-Memory)     │    │ (omdbapi.com)   │   │
+└─────────────────┘    └──────────────────┘    └─────────────────┘   │
+        │                       ▲                       │            │
+        │                       └───── Cache Miss ──────┘            │
+        ▼                                                            │
+┌─────────────────┐                                                  │
+│ Cache Endpoints │                                                  │
+│ /cache/stats    │                                                  │
+│ /cache/clear    │                              Cache Hit ─────────-┘
+└─────────────────┘
+```
+
+### Key Components
+- **🎮 McpController**: HTTP endpoint handling and request routing
+- **🧠 McpService**: MCP protocol implementation and business logic
+- **🌐 OmdbService**: OMDB API integration with reactive WebClient and intelligent caching
+- **⚡ Cache Layer**: Caffeine-based in-memory caching with configurable TTL and LRU eviction
+- **📊 Cache Management**: REST endpoints for cache statistics and management
+- **📋 Model Classes**: Data structures for MCP and OMDB responses
+- **⚙️ Configuration**: Spring Boot auto-configuration and properties
+
+### Security Features
+- 🔐 Non-root Docker user
+- 🛡️ Automated vulnerability scanning
+- 🚫 No sensitive data in images
+- ✅ Health checks and monitoring
+- 🔒 HTTPS support for external APIs
 
 ## Prerequisites
 
@@ -847,62 +963,6 @@ Common error codes:
 - `-32601`: Method not found
 - `-32602`: Invalid params
 - `-32603`: Internal error
-
-## 🏗️ Architecture & Technology Stack
-
-### Technology Stack
-- **☕ Java 23**: Modern Java with latest features
-- **🍃 Spring Boot 3.5.4**: Production-ready application framework
-- **⚡ Spring WebFlux**: Reactive programming for better performance
-- **🗄️ Spring Cache + Caffeine**: High-performance in-memory caching with automatic management
-- **🐳 Docker**: Containerized deployment with multi-stage builds
-- **🧪 JUnit 5**: Comprehensive testing framework
-- **📊 JaCoCo**: Code coverage analysis
-- **🔒 Spring Security**: Security scanning and best practices
-
-### Architecture Overview
-```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   MCP Client    │───▶│  MCP Controller  │───▶│   MCP Service   │
-│  (AI Assistant) │    │  (REST Layer)    │    │ (Protocol Impl) │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                        │
-                                                        ▼
-                                                ┌─────────────────┐
-                                                │  OMDB Service   │◀─┐
-                                                │ (External API)  │  │
-                                                └─────────────────┘  │
-                                                        │            │
-                                                        ▼            │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐   │
-│ Cache Manager   │───▶│  Caffeine Cache  │    │   OMDB API      │   │
-│   (Statistics)  │    │  (In-Memory)     │    │ (omdbapi.com)   │   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘   │
-        │                       ▲                       │            │
-        │                       └───── Cache Miss ──────┘            │
-        ▼                                                            │
-┌─────────────────┐                                                  │
-│ Cache Endpoints │                                                  │
-│ /cache/stats    │                                                  │
-│ /cache/clear    │                              Cache Hit ─────────-┘
-└─────────────────┘
-```
-
-### Key Components
-- **🎮 McpController**: HTTP endpoint handling and request routing
-- **🧠 McpService**: MCP protocol implementation and business logic
-- **🌐 OmdbService**: OMDB API integration with reactive WebClient and intelligent caching
-- **⚡ Cache Layer**: Caffeine-based in-memory caching with configurable TTL and LRU eviction
-- **📊 Cache Management**: REST endpoints for cache statistics and management
-- **📋 Model Classes**: Data structures for MCP and OMDB responses
-- **⚙️ Configuration**: Spring Boot auto-configuration and properties
-
-### Security Features
-- 🔐 Non-root Docker user
-- 🛡️ Automated vulnerability scanning
-- 🚫 No sensitive data in images
-- ✅ Health checks and monitoring
-- 🔒 HTTPS support for external APIs
 
 ## 🤝 Contributing
 
