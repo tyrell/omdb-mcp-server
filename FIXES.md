@@ -39,7 +39,7 @@ curl "https://www.omdbapi.com/?apikey=3a38d866&s=Matrix"
 
 ### ✅ MCP Server Test
 ```bash
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8081/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": "1", "method": "tools/call", "params": {"name": "search_movies", "arguments": {"title": "Matrix"}}}'
 # Response: Success with formatted movie search results
@@ -47,7 +47,7 @@ curl -X POST http://localhost:8080/mcp \
 
 ### ✅ Movie Details Test
 ```bash
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8081/mcp \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc": "2.0", "id": "2", "method": "tools/call", "params": {"name": "get_movie_details", "arguments": {"title": "The Matrix", "year": "1999"}}}'
 # Response: Success with detailed movie information
@@ -69,5 +69,5 @@ The OMDB MCP Server is now fully functional with:
 
 1. Set your API key: `export OMDB_API_KEY=your-api-key`
 2. Start server: `java -jar target/omdb-mcp-server-0.0.1-SNAPSHOT.jar`
-3. Test health: `curl http://localhost:8080/mcp/health`
+3. Test health: `curl http://localhost:8081/mcp/health`
 4. Use MCP tools as documented in README.md

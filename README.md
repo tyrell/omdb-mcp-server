@@ -59,7 +59,7 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 
 ```bash
 # Pull and run the latest Docker image
-docker run -p 8080:8080 -e OMDB_API_KEY=your-api-key ghcr.io/tyrell/omdb-mcp-server:latest
+docker run -p 8081:8081 -e OMDB_API_KEY=your-api-key ghcr.io/tyrell/omdb-mcp-server:latest
 ```
 
 ### 📦 Using Pre-built JAR
@@ -89,15 +89,15 @@ docker run -p 8080:8080 -e OMDB_API_KEY=your-api-key ghcr.io/tyrell/omdb-mcp-ser
    ./mvnw spring-boot:run
    ```
 
-The server will start on `http://localhost:8080`
+The server will start on `http://localhost:8081`
 
-**📖 View API Documentation**: Once running, access the interactive API documentation at http://localhost:8080/swagger-ui/index.html
+**📖 View API Documentation**: Once running, access the interactive API documentation at http://localhost:8081/swagger-ui/index.html
 
 ## 🔧 Configuration
 
 ### Environment Variables
 - `OMDB_API_KEY`: Your OMDB API key (required)
-- `SERVER_PORT`: Server port (default: 8080)
+- `SERVER_PORT`: Server port (default: 8081)
 - `MCP_SERVER_NAME`: MCP server name (default: "OMDB Movie Database Server")
 
 ### Cache Configuration
@@ -124,11 +124,11 @@ services:
   omdb-mcp-server:
     image: ghcr.io/tyrell/omdb-mcp-server:latest
     ports:
-      - "8080:8080"
+      - "8081:8081"
     environment:
       - OMDB_API_KEY=your-api-key-here
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/actuator/health"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/actuator/health"]
       interval: 30s
       timeout: 3s
       retries: 3
@@ -241,7 +241,7 @@ The server can be configured using environment variables or `application.propert
 ### Core Configuration
 ```properties
 # Server Configuration
-server.port=8080
+server.port=8081
 
 # OMDB API Configuration
 omdb.api.url=https://www.omdbapi.com/
@@ -281,49 +281,49 @@ JAVA_OPTS=-Xmx512m -Xms256m -XX:+UseG1GC
 
 ### Health Check
 ```bash
-curl http://localhost:8080/actuator/health
+curl http://localhost:8081/actuator/health
 ```
 
 ### Cache Performance Testing
 **Check cache statistics**:
 ```bash
-curl http://localhost:8080/cache/stats
+curl http://localhost:8081/cache/stats
 ```
 
 **Clear cache for testing**:
 ```bash
 # Clear all caches
-curl -X DELETE http://localhost:8080/cache/clear
+curl -X DELETE http://localhost:8081/cache/clear
 
 # Clear specific cache
-curl -X DELETE http://localhost:8080/cache/clear/movieSearch
+curl -X DELETE http://localhost:8081/cache/clear/movieSearch
 ```
 
 **Test cache effectiveness**:
 1. Make an initial request (cache miss):
    ```bash
-   time curl -X POST http://localhost:8080/mcp \
+   time curl -X POST http://localhost:8081/mcp \
      -H "Content-Type: application/json" \
      -d '{"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"search_movies","arguments":{"title":"The Matrix"}}}'
    ```
 
 2. Repeat the same request (cache hit - should be much faster):
    ```bash
-   time curl -X POST http://localhost:8080/mcp \
+   time curl -X POST http://localhost:8081/mcp \
      -H "Content-Type: application/json" \
      -d '{"jsonrpc":"2.0","id":"2","method":"tools/call","params":{"name":"search_movies","arguments":{"title":"The Matrix"}}}'
    ```
 
 3. Check cache statistics to see hit/miss ratios:
    ```bash
-   curl http://localhost:8080/cache/stats
+   curl http://localhost:8081/cache/stats
    ```
 
 ### MCP Protocol Testing
 
 **Initialize the MCP connection**:
 ```bash
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8081/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -342,7 +342,7 @@ curl -X POST http://localhost:8080/mcp \
 
 **List available tools**:
 ```bash
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8081/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -353,7 +353,7 @@ curl -X POST http://localhost:8080/mcp \
 
 **Search for movies**:
 ```bash
-curl -X POST http://localhost:8080/mcp \
+curl -X POST http://localhost:8081/mcp \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -434,7 +434,7 @@ This project includes comprehensive GitHub Actions workflows:
          - name: omdb-mcp-server
            image: ghcr.io/tyrell/omdb-mcp-server:latest
            ports:
-           - containerPort: 8080
+           - containerPort: 8081
            env:
            - name: OMDB_API_KEY
              valueFrom:
@@ -451,8 +451,8 @@ The OMDB MCP Server provides comprehensive OpenAPI documentation for both the MC
 
 When the server is running, you can access the interactive API documentation at:
 
-- **Swagger UI**: http://localhost:8080/swagger-ui/index.html
-- **OpenAPI JSON**: http://localhost:8080/v3/api-docs
+- **Swagger UI**: http://localhost:8081/swagger-ui/index.html
+- **OpenAPI JSON**: http://localhost:8081/v3/api-docs
 
 ### API Endpoints
 

@@ -50,7 +50,7 @@ jobs:
       run: |
         # Test that the container starts and responds to health check
         echo "Starting Docker container test..."
-        docker run -d --name test-container -p 8080:8080 omdb-mcp-server:latest
+        docker run -d --name test-container -p 8081:8081 omdb-mcp-server:latest
         echo "Container started, waiting for initialization..."
         sleep 15
         

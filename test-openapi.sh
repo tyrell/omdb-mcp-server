@@ -25,7 +25,7 @@ cleanup() {
 
 # Test OpenAPI JSON endpoint
 echo "📋 Testing OpenAPI JSON endpoint..."
-if curl -s -f http://localhost:8080/v3/api-docs > /dev/null; then
+if curl -s -f http://localhost:8081/v3/api-docs > /dev/null; then
     echo "✅ OpenAPI JSON endpoint is accessible"
 else
     echo "❌ OpenAPI JSON endpoint failed"
@@ -34,7 +34,7 @@ fi
 
 # Test Swagger UI endpoint
 echo "🌐 Testing Swagger UI endpoint..."
-if curl -s -f http://localhost:8080/swagger-ui/index.html > /dev/null; then
+if curl -s -f http://localhost:8081/swagger-ui/index.html > /dev/null; then
     echo "✅ Swagger UI endpoint is accessible"
 else
     echo "❌ Swagger UI endpoint failed"
@@ -43,7 +43,7 @@ fi
 
 # Test MCP health endpoint
 echo "🏥 Testing MCP health endpoint..."
-HEALTH_RESPONSE=$(curl -s http://localhost:8080/mcp/health)
+HEALTH_RESPONSE=$(curl -s http://localhost:8081/mcp/health)
 if [ "$HEALTH_RESPONSE" = "MCP Server is running" ]; then
     echo "✅ MCP health endpoint working correctly"
 else
@@ -53,7 +53,7 @@ fi
 
 # Test cache stats endpoint
 echo "📊 Testing cache stats endpoint..."
-if curl -s -f http://localhost:8080/cache/stats > /dev/null; then
+if curl -s -f http://localhost:8081/cache/stats > /dev/null; then
     echo "✅ Cache stats endpoint is accessible"
 else
     echo "❌ Cache stats endpoint failed"
@@ -63,7 +63,7 @@ fi
 echo ""
 echo "🎉 All OpenAPI documentation tests passed!"
 echo "📖 Access documentation at:"
-echo "   - Swagger UI: http://localhost:8080/swagger-ui/index.html"
-echo "   - OpenAPI JSON: http://localhost:8080/v3/api-docs"
+echo "   - Swagger UI: http://localhost:8081/swagger-ui/index.html"
+echo "   - OpenAPI JSON: http://localhost:8081/v3/api-docs"
 
 cleanup 0

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # Sample script to test the OMDB MCP Server
-# Make sure the server is running on localhost:8080
+# Make sure the server is running on localhost:8081
 
-BASE_URL="http://localhost:8080/mcp"
+BASE_URL="http://localhost:8081/mcp"
 
 echo "Testing OMDB MCP Server..."
 echo "========================="

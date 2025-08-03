@@ -72,7 +72,7 @@ jobs:
           
           **Docker (Recommended):**
           ```bash
-          docker run -p 8080:8080 -e OMDB_API_KEY=your-key ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
+          docker run -p 8081:8081 -e OMDB_API_KEY=your-key ghcr.io/${{ github.repository }}:${{ steps.get_version.outputs.version }}
           ```
           
           **JAR Download:**
