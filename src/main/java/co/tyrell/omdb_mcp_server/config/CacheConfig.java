@@ -33,6 +33,7 @@ public class CacheConfig {
     public CacheManager cacheManager() {
         CaffeineCacheManager cacheManager = new CaffeineCacheManager();
         cacheManager.setCaffeine(caffeineCacheBuilder());
+        cacheManager.setAsyncCacheMode(true); // Enable async cache mode for reactive types
         cacheManager.setCacheNames(java.util.List.of(
             MOVIE_SEARCH_CACHE,
             MOVIE_BY_TITLE_CACHE,
