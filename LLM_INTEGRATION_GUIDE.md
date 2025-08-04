@@ -1,8 +1,6 @@
 # OMDB MCP Server - LLM Integration Guide
 
-## Overview
-
-This## Prerequisites
+## Prerequisites
 
 ### For the OMDB MCP Server
 
