@@ -1,13 +1,6 @@
 # OMDB MCP Server - LLM Integration Guide
 
-## Prerequisites
-
-### For the OMDB MCP Server
-
-- Java 24 or higher (recommended for optimal performance)
-- Spring Boot 3.5.4+ with Spring AI 1.0.0
-- OMDB API Key (free from http://www.omdbapi.com/apikey.aspx)
-- Docker (optional, for containerized deployment)explains how to integrate the OMDB MCP Server with Large Language Models (LLMs) to enable AI assistants to search for movies and retrieve detailed movie information from the Open Movie Database (OMDB).
+This guide explains how to integrate the OMDB MCP Server with Large Language Models (LLMs) to enable AI assistants to search for movies and retrieve detailed movie information from the Open Movie Database (OMDB).
 
 The OMDB MCP Server is built with **Spring AI's native MCP Server support**, implementing the Model Context Protocol (MCP) 2024-11-05 specification for seamless integration with AI assistants and LLM clients.
 
@@ -45,6 +38,7 @@ Spring AI provides native MCP Server support with autoconfiguration and Function
         │                   ┌──────────────────┐            │
         └──────────────────▶│  Cached Results  │◀───────────┘
                             │  (In Memory)     │
+                            └──────────────────┘
 ```
 
 ### Key Components
@@ -53,8 +47,6 @@ Spring AI provides native MCP Server support with autoconfiguration and Function
 - **Function Beans**: Tools registered as Spring Function components for auto-discovery
 - **SSE Transport**: Server-Sent Events at `/sse` for real-time bidirectional communication
 - **WebFlux Integration**: Reactive architecture for scalable performance
-                        └──────────────────┘
-```
 
 ### Available Tools
 
@@ -604,11 +596,10 @@ public class McpServerConfig {
 ### 3. Tool Discovery (Handled by Spring AI)
 
 Spring AI automatically handles tool discovery requests from MCP clients. When a client requests available tools, Spring AI responds with the registered Function beans and their schemas.
-```
 
 This returns a list of all available tools with their schemas and descriptions.
 
-### 3. Search for Movies
+### 4. Search for Movies
 
 ```json
 {
@@ -631,7 +622,7 @@ This returns a list of all available tools with their schemas and descriptions.
 - `year` (optional): Year of release
 - `type` (optional): "movie", "series", or "episode"
 
-### 4. Get Detailed Movie Information
+### 5. Get Detailed Movie Information
 
 ```json
 {
@@ -654,7 +645,7 @@ This returns a list of all available tools with their schemas and descriptions.
 - `year` (optional): Year of release
 - `plot` (optional): "short" or "full" (default: "full")
 
-### 5. Get Movie by IMDB ID
+### 6. Get Movie by IMDB ID
 
 ```json
 {
@@ -858,7 +849,7 @@ When a movie isn't found, the server returns a successful response with an error
 ### Spring AI MCP Server Issues
 
 1. **Server Won't Start**
-   - Check Java version (requires Java 24+)
+   - Check Java version (requires Java 23+)
    - Verify OMDB API key is set correctly
    - Check port 8081 isn't already in use
    - Ensure Spring AI 1.0.0 dependencies are available
