@@ -10,9 +10,9 @@
 	</parent>
 	<groupId>co.tyrell</groupId>
 	<artifactId>omdb-mcp-server</artifactId>
-	<version>0.2.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<name>omdb-mcp-server</name>
-	<description>Demo project for Spring Boot</description>
+	<description>OMDB MCP Server with Spring AI native MCP support</description>
 	<url/>
 	<licenses>
 		<license/>
