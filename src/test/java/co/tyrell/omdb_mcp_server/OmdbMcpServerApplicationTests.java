@@ -1,74 +1,92 @@
 package co.tyrell.omdb_mcp_server;
 
-import co.tyrell.omdb_mcp_server.controller.McpController;
-import co.tyrell.omdb_mcp_server.service.McpService;
+import co.tyrell.omdb_mcp_server.service.MovieSearchTools;
 import co.tyrell.omdb_mcp_server.service.OmdbService;
-import co.tyrell.omdb_mcp_server.transport.StdioTransport;
-import co.tyrell.omdb_mcp_server.config.McpProperties;
+import io.modelcontextprotocol.server.transport.WebFluxSseServerTransportProvider;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.TestPropertySource;
+import org.springframework.web.reactive.function.server.RouterFunction;
+
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
 @TestPropertySource(properties = {
     "omdb.api.key=test-key",
-    "mcp.server.name=Test OMDB MCP Server",
-    "mcp.server.version=0.2.0-TEST", 
-    "mcp.server.description=Test MCP server for OMDB movie database",
-    "mcp.transport.stdio.enabled=true"  // Enable for testing
+    "spring.ai.mcp.server.enabled=true",
+    "spring.ai.mcp.server.name=Test OMDB MCP Server",
+    "spring.ai.mcp.server.version=0.2.0-TEST",
+    "spring.ai.mcp.server.type=ASYNC",
+    "spring.ai.mcp.server.instructions=Test MCP server for OMDB movie database using Spring AI"
 })
 class OmdbMcpServerApplicationTests {
 
 	@Autowired
-	private McpController mcpController;
-	
-	@Autowired
-	private McpService mcpService;
+	private MovieSearchTools movieSearchTools;
 	
 	@Autowired
 	private OmdbService omdbService;
 	
-	@Autowired(required = false)  // Make optional since it's conditionally created
-	private StdioTransport stdioTransport;
+	@Autowired
+	private WebFluxSseServerTransportProvider webFluxSseServerTransportProvider;
 	
 	@Autowired
-	private McpProperties mcpProperties;
+	private RouterFunction<?> webfluxMcpRouterFunction;
+	
+	@Autowired
+	private Function<MovieSearchTools.SearchMoviesRequest, String> searchMoviesFunction;
+	
+	@Autowired
+	private Function<MovieSearchTools.MovieDetailsRequest, String> getMovieDetailsFunction;
+	
+	@Autowired
+	private Function<MovieSearchTools.MovieByImdbIdRequest, String> getMovieByImdbIdFunction;
 
 	@Test
 	void contextLoads() {
-		// Verify that all main components are loaded
-		assertThat(mcpController).isNotNull();
-		assertThat(mcpService).isNotNull();
+		// Verify that all main components are loaded for Spring AI MCP Server
+		assertThat(movieSearchTools).isNotNull();
 		assertThat(omdbService).isNotNull();
-		assertThat(stdioTransport).isNotNull();
-		assertThat(mcpProperties).isNotNull();
+		assertThat(webFluxSseServerTransportProvider).isNotNull();
+		assertThat(webfluxMcpRouterFunction).isNotNull();
 	}
 
 	@Test
-	void healthEndpointWorks() {
-		var response = mcpController.health();
-		assertThat(response.getStatusCode().value()).isEqualTo(200);
-		assertThat(response.getBody()).isEqualTo("MCP Server is running");
+	void springAiMcpFunctionBeansArePresent() {
+		// Verify that Spring AI MCP function beans are created
+		assertThat(searchMoviesFunction).isNotNull();
+		assertThat(getMovieDetailsFunction).isNotNull();
+		assertThat(getMovieByImdbIdFunction).isNotNull();
 	}
 	
 	@Test
-	void mcpPropertiesAreConfigured() {
-		// Verify MCP properties are correctly configured
-		assertThat(mcpProperties.getName()).isEqualTo("Test OMDB MCP Server");
-		assertThat(mcpProperties.getVersion()).isEqualTo("0.2.0-TEST");
-		assertThat(mcpProperties.getDescription()).isEqualTo("Test MCP server for OMDB movie database");
+	void movieSearchFunctionsWork() {
+		// Verify MovieSearchTools function beans work correctly
+		var searchRequest = new MovieSearchTools.SearchMoviesRequest("Inception", null, null);
+		String searchResult = searchMoviesFunction.apply(searchRequest);
+		assertThat(searchResult).isNotNull();
+		
+		var detailsRequest = new MovieSearchTools.MovieDetailsRequest("Inception", "2010", "short");
+		String detailsResult = getMovieDetailsFunction.apply(detailsRequest);
+		assertThat(detailsResult).isNotNull();
+		
+		var imdbRequest = new MovieSearchTools.MovieByImdbIdRequest("tt1375666", "short");
+		String imdbResult = getMovieByImdbIdFunction.apply(imdbRequest);
+		assertThat(imdbResult).isNotNull();
 	}
 	
 	@Test
 	void allRequiredBeansArePresent() {
-		// Verify that Spring context contains all required beans for MCP functionality
-		assertThat(mcpController).as("McpController should be present").isNotNull();
-		assertThat(mcpService).as("McpService should be present").isNotNull();
+		// Verify that Spring context contains all required beans for Spring AI MCP functionality
+		assertThat(movieSearchTools).as("MovieSearchTools should be present").isNotNull();
 		assertThat(omdbService).as("OmdbService should be present").isNotNull();
-		assertThat(stdioTransport).as("StdioTransport should be present").isNotNull();
-		assertThat(mcpProperties).as("McpProperties should be present").isNotNull();
+		assertThat(webFluxSseServerTransportProvider).as("WebFluxSseServerTransportProvider should be present").isNotNull();
+		assertThat(webfluxMcpRouterFunction).as("WebFlux MCP RouterFunction should be present").isNotNull();
+		assertThat(searchMoviesFunction).as("SearchMovies function should be present").isNotNull();
+		assertThat(getMovieDetailsFunction).as("GetMovieDetails function should be present").isNotNull();
+		assertThat(getMovieByImdbIdFunction).as("GetMovieByImdbId function should be present").isNotNull();
 	}
 }

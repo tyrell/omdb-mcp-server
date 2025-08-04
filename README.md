@@ -5,12 +5,13 @@
 [![Docker](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/docker.yml)
 [![Release](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml/badge.svg)](https://github.com/tyrell/omdb-mcp-server/actions/workflows/release.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Java](https://img.shields.io/badge/Java-23-orange.svg)](https://openjdk.org/projects/jdk/23/)
+[![Java](https://img.shields.io/badge/Java-24-orange.svg)](https://openjdk.org/projects/jdk/24/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.5.4-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Spring AI](https://img.shields.io/badge/Spring%20AI-1.0.0-brightgreen.svg)](https://docs.spring.io/spring-ai/reference/)
 [![Docker](https://img.shields.io/badge/Docker-Available-blue.svg)](https://github.com/tyrell/omdb-mcp-server/pkgs/container/omdb-mcp-server)
 [![MCP](https://img.shields.io/badge/MCP-2024--11--05-purple.svg)](https://spec.modelcontextprotocol.io/specification/)
 
-A Model Context Protocol (MCP) Server that provides access to the Open Movie Database (OMDB) API. This server allows AI assistants and other MCP clients to search for movies and retrieve detailed movie information.
+A Model Context Protocol (MCP) Server powered by **Spring AI** that provides access to the Open Movie Database (OMDB) API. This server uses Spring AI's native MCP Server support to allow AI assistants and other MCP clients to search for movies and retrieve detailed movie information.
 
 ## Table of Contents
 
@@ -36,7 +37,7 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
     - [Environment Variables](#environment-variables)
     - [Cache Configuration](#cache-configuration)
     - [Docker Compose](#docker-compose)
-    - [Stdio Transport for MCP Clients](#stdio-transport-for-mcp-clients)
+    - [Spring AI MCP Server Configuration](#spring-ai-mcp-server-configuration)
   - [MCP Tools](#mcp-tools)
     - [1. search\_movies](#1-search_movies)
     - [2. get\_movie\_details](#2-get_movie_details)
@@ -93,7 +94,7 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 ### 🔌 MCP Protocol Compliance
 - **MCP 2024-11-05**: Fully implements the latest MCP specification
 - **Multiple Transports**: Supports both HTTP REST and stdin/stdout communication
-- **Stdio Transport**: Primary MCP transport method for AI clients like Claude Desktop
+- **SSE Transport**: Server-Sent Events transport for real-time MCP communication with AI clients
 - **JSON-RPC 2.0**: Standard protocol with proper error codes (-32700, -32600, -32601, -32602, -32603)
 - **Tool Discovery**: Dynamic tool listing with JSON Schema validation
 - **Enhanced Schemas**: Rich metadata, validation rules, and examples for better AI understanding
@@ -116,12 +117,13 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 ## 🏗️ Architecture & Technology Stack
 
 ### Technology Stack
-- **☕ Java 23**: Modern Java with latest features
+- **☕ Java 24**: Latest Java with modern features and performance improvements  
 - **🍃 Spring Boot 3.5.4**: Production-ready application framework
-- **⚡ Spring WebFlux**: Reactive programming for better performance
+- **🤖 Spring AI 1.0.0**: Native MCP Server support with autoconfiguration
+- **⚡ Spring WebFlux**: Reactive programming with SSE transport for MCP communication
 - **🗄️ Spring Cache + Caffeine**: High-performance in-memory caching with automatic management
 - **🐳 Docker**: Containerized deployment with multi-stage builds
-- **🧪 JUnit 5**: Comprehensive testing framework
+- **🧪 JUnit 5**: Comprehensive testing framework with Spring Boot Test integration
 - **📊 JaCoCo**: Code coverage analysis
 - **🔒 Spring Security**: Security scanning and best practices
 
@@ -135,21 +137,28 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
                     ┌──────┴──────┐
                     │             │
            ┌────────▼─────┐ ┌─────▼──────────┐
-           │ Stdio        │ │ HTTP REST      │
+           │ SSE          │ │ HTTP REST      │
            │ Transport    │ │ Controller     │
-           │ (stdin/out)  │ │ (Port 8081)    │
+           │ (/sse)       │ │ (Port 8081)    │
            └────────┬─────┘ └─────┬──────────┘
                     │             │
                     └──────┬──────┘
                            ▼
                    ┌─────────────────┐
-                   │   MCP Service   │
-                   │ (Protocol Impl) │
+                   │ Spring AI MCP   │
+                   │ Autoconfigured  │
+                   │ Function Beans  │
                    └─────────────────┘
                            │
                            ▼
                    ┌─────────────────┐
-                   │  OMDB Service   │◀─┐
+                   │MovieSearchTools │◀─┐
+                   │ (Function Impl) │  │
+                   └─────────────────┘  │
+                           │            │
+                           ▼            │
+                   ┌─────────────────┐  │
+                   │  OMDB Service   │  │
                    │ (External API)  │  │
                    └─────────────────┘  │
                            │            │
@@ -174,14 +183,15 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 ```
 
 ### Key Components
-- **🎮 McpController**: HTTP endpoint handling and request routing
-- **📡 StdioTransport**: Stdin/stdout communication for MCP clients like Claude Desktop
-- **🧠 McpService**: MCP protocol implementation and business logic
+- **🤖 Spring AI MCP**: Autoconfigured MCP server with WebFlux SSE transport
+- **�️ MovieSearchTools**: Service providing OMDB movie search functionality as Spring AI Function beans
+- **⚙️ McpServerConfig**: Configuration class registering Function beans for MCP tool discovery
 - **🌐 OmdbService**: OMDB API integration with reactive WebClient and intelligent caching
 - **⚡ Cache Layer**: Caffeine-based in-memory caching with configurable TTL and LRU eviction
-- **📊 Cache Management**: REST endpoints for cache statistics and management
-- **📋 Model Classes**: Data structures for MCP and OMDB responses with JSON Schema validation
-- **⚙️ Configuration**: Spring Boot auto-configuration and properties
+- **📊 Cache Management**: REST endpoints for cache statistics and management (/cache/*)
+- **� SSE Transport**: Server-Sent Events endpoint (/sse) for real-time MCP communication
+- **📋 Model Classes**: Request/response records for strongly-typed Function interfaces
+- **⚙️ Configuration**: Spring AI MCP autoconfiguration via application.properties
 
 ### Security Features
 - 🔐 Non-root Docker user
@@ -192,7 +202,7 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 
 ## Prerequisites
 
-- Java 23 or higher
+- Java 24 or higher
 - Maven 3.6 or higher
 - OMDB API Key (free registration at http://www.omdbapi.com/apikey.aspx)
 
@@ -241,7 +251,8 @@ The server will start on `http://localhost:8081`
 ### Environment Variables
 - `OMDB_API_KEY`: Your OMDB API key (required)
 - `SERVER_PORT`: Server port (default: 8081)
-- `MCP_SERVER_NAME`: MCP server name (default: "OMDB Movie Database Server")
+- `SPRING_AI_MCP_SERVER_NAME`: MCP server name (default: "OMDB Movie Database Server")
+- `SPRING_AI_MCP_SERVER_VERSION`: MCP server version (default: "0.2.0-SNAPSHOT")
 
 ### Cache Configuration
 The server includes intelligent caching to reduce OMDB API calls:
@@ -275,21 +286,11 @@ services:
       retries: 3
 ```
 
-### Stdio Transport for MCP Clients
+### Spring AI MCP Server Configuration
 
-For AI clients like Claude Desktop, use the stdin/stdout transport method:
+For AI clients like Claude Desktop, use the Server-Sent Events (SSE) transport:
 
-**Command Line Usage**:
-```bash
-# Using JAR file
-java -jar omdb-mcp-server.jar --stdio
-
-# With environment variables
-OMDB_API_KEY=your-key java -jar omdb-mcp-server.jar --stdio
-
-# Using Maven
-OMDB_API_KEY=your-key ./mvnw spring-boot:run -Dspring-boot.run.arguments="--stdio"
-```
+**SSE Endpoint**: `http://localhost:8081/sse`
 
 **Claude Desktop Configuration** (`claude_desktop_config.json`):
 ```json
@@ -297,7 +298,7 @@ OMDB_API_KEY=your-key ./mvnw spring-boot:run -Dspring-boot.run.arguments="--stdi
   "mcpServers": {
     "omdb": {
       "command": "java",
-      "args": ["-jar", "/path/to/omdb-mcp-server.jar", "--stdio"],
+      "args": ["-jar", "/path/to/omdb-mcp-server.jar"],
       "env": {
         "OMDB_API_KEY": "your-actual-api-key-here"
       }
@@ -306,9 +307,19 @@ OMDB_API_KEY=your-key ./mvnw spring-boot:run -Dspring-boot.run.arguments="--stdi
 }
 ```
 
+**Alternative: Direct SSE Connection**:
+If using a custom MCP client that supports SSE:
+```javascript
+const eventSource = new EventSource('http://localhost:8081/sse');
+eventSource.onmessage = function(event) {
+  // Handle MCP messages
+  const mcpMessage = JSON.parse(event.data);
+};
+```
+
 **Transport Modes**:
-- **HTTP Mode** (default): For testing and web integration on port 8081
-- **Stdio Mode** (`--stdio` flag): For MCP clients using stdin/stdout communication
+- **SSE Mode** (default): Server-Sent Events at `/sse` for real-time MCP communication
+- **HTTP Mode**: REST endpoints for testing and web integration on port 8081
 
 ## MCP Tools
 
@@ -384,59 +395,44 @@ Get detailed information about a movie by IMDB ID.
 
 ## MCP Protocol Implementation
 
-This server implements the full MCP 2024-11-05 specification with the following capabilities:
+This server implements the MCP 2024-11-05 specification using **Spring AI's native MCP Server support** with the following capabilities:
 
 ### Supported Methods
-- **initialize**: Server initialization and capability negotiation
-- **ping**: Connection testing and keep-alive
-- **tools/list**: Dynamic tool discovery with JSON Schema validation
-- **tools/call**: Tool execution with parameter validation
-- **notifications/initialized**: Client initialization completion
+- **initialize**: Server initialization and capability negotiation (handled by Spring AI)
+- **ping**: Connection testing and keep-alive (handled by Spring AI)
+- **tools/list**: Dynamic tool discovery via Function bean registration
+- **tools/call**: Tool execution through Spring AI Function interface
+- **notifications/initialized**: Client initialization completion (handled by Spring AI)
 
-### Initialize
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "1",
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {},
-    "clientInfo": {
-      "name": "example-client",
-      "version": "1.0.0"
+### Spring AI Function Registration
+Tools are automatically registered as Function beans and discovered by Spring AI:
+
+```java
+@Configuration
+public class McpServerConfig {
+    
+    @Bean
+    public Function<SearchMoviesRequest, String> searchMovies(MovieSearchTools movieSearchTools) {
+        return movieSearchTools::searchMovies;
     }
-  }
-}
-```
-
-**Response**:
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "1",
-  "result": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {
-      "tools": {},
-      "logging": {}
-    },
-    "serverInfo": {
-      "name": "OMDB Movie Database Server",
-      "version": "1.0.0"
+    
+    @Bean
+    public Function<GetMovieDetailsRequest, String> getMovieDetails(MovieSearchTools movieSearchTools) {
+        return movieSearchTools::getMovieDetails;
     }
-  }
+    
+    @Bean
+    public Function<GetMovieByImdbIdRequest, String> getMovieByImdbId(MovieSearchTools movieSearchTools) {
+        return movieSearchTools::getMovieByImdbId;
+    }
 }
 ```
 
-### Ping
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "2",
-  "method": "ping"
-}
-```
+### SSE Transport
+Spring AI MCP Server uses Server-Sent Events for real-time communication:
+- **Endpoint**: `GET /sse`
+- **Content-Type**: `text/event-stream`
+- **Connection**: Persistent bidirectional communication
 
 ### List Tools
 ```json
@@ -460,10 +456,13 @@ server.port=8081
 omdb.api.url=https://www.omdbapi.com/
 omdb.api.key=${OMDB_API_KEY:your-api-key-here}
 
-# MCP Server Configuration
-mcp.server.name=OMDB Movie Database Server
-mcp.server.version=1.0.0
-mcp.server.description=MCP Server for searching and retrieving movie information from OMDB API
+# Spring AI MCP Server Configuration
+spring.ai.mcp.server.enabled=true
+spring.ai.mcp.server.name=OMDB Movie Database Server
+spring.ai.mcp.server.version=0.2.0-SNAPSHOT
+spring.ai.mcp.server.description=Spring AI MCP Server for searching and retrieving movie information from OMDB API
+spring.ai.mcp.server.type=ASYNC
+spring.ai.mcp.server.transport.type=SSE
 
 # Cache Configuration
 cache.expire-after-write=1h        # Cache TTL (Time To Live)
@@ -474,6 +473,7 @@ cache.record-stats=true           # Enable cache statistics
 logging.level.co.tyrell.omdb_mcp_server=INFO
 logging.level.root=WARN
 logging.level.org.springframework.cache=DEBUG  # For cache debugging
+logging.level.org.springframework.ai.mcp=DEBUG  # For MCP debugging
 
 # Actuator (Health Checks)
 management.endpoints.web.exposure.include=health,info
@@ -625,7 +625,7 @@ This project includes comprehensive GitHub Actions workflows:
 
 2. **Manual JAR Deployment**:
    - Download from [GitHub Releases](https://github.com/tyrell/omdb-mcp-server/releases)
-   - Deploy on any Java 23+ environment
+   - Deploy on any Java 24+ environment
 
 3. **Kubernetes**:
    ```yaml
@@ -1074,7 +1074,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
    ```
 3. **Set up development environment**:
    ```bash
-   # Install Java 23 and Maven
+   # Install Java 24 and Maven
    ./mvnw clean compile
    export OMDB_API_KEY=your-test-api-key
    ```

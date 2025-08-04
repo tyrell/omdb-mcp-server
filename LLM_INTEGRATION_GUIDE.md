@@ -2,9 +2,16 @@
 
 ## Overview
 
-This guide explains how to integrate the OMDB MCP Server with Large Language Models (LLMs) to enable AI assistants to search for movies and retrieve detailed movie information from the Open Movie Database (OMDB).
+This## Prerequisites
 
-The OMDB MCP Server implements the Model Context Protocol (MCP) 2024-11-05 specification, making it compatible with various AI assistants and LLM clients that support MCP.
+### For the OMDB MCP Server
+
+- Java 24 or higher (recommended for optimal performance)
+- Spring Boot 3.5.4+ with Spring AI 1.0.0
+- OMDB API Key (free from http://www.omdbapi.com/apikey.aspx)
+- Docker (optional, for containerized deployment)explains how to integrate the OMDB MCP Server with Large Language Models (LLMs) to enable AI assistants to search for movies and retrieve detailed movie information from the Open Movie Database (OMDB).
+
+The OMDB MCP Server is built with **Spring AI's native MCP Server support**, implementing the Model Context Protocol (MCP) 2024-11-05 specification for seamless integration with AI assistants and LLM clients.
 
 ## Table of Contents
 
@@ -12,27 +19,42 @@ The OMDB MCP Server implements the Model Context Protocol (MCP) 2024-11-05 speci
 2. [Prerequisites](#prerequisites)
 3. [Setting Up the MCP Server](#setting-up-the-mcp-server)
 4. [MCP Client Integration](#mcp-client-integration)
-5. [Tool Usage Patterns](#tool-usage-patterns)
-6. [Example Conversations](#example-conversations)
-7. [Best Practices](#best-practices)
-8. [Troubleshooting](#troubleshooting)
+5. [Testing with Ollama](#testing-with-ollama)
+6. [Tool Usage Patterns](#tool-usage-patterns)
+7. [Example Conversations](#example-conversations)
+8. [Best Practices](#best-practices)
+9. [Troubleshooting](#troubleshooting)
 
 ## Understanding the Architecture
 
-### Model Context Protocol (MCP)
+### Spring AI MCP Server
 
-The Model Context Protocol is a standard that allows AI assistants to access external tools and data sources. The OMDB MCP Server acts as a bridge between your LLM and the OMDB API, providing these capabilities:
+Spring AI provides native MCP Server support with autoconfiguration and Function-based tool registration. The OMDB MCP Server leverages these capabilities:
 
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   LLM Client    │───▶│  OMDB MCP Server │───▶│   OMDB API      │
-│  (AI Assistant) │    │  (This Project)  │    │ (omdbapi.com)   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-        │                       │                       │
-        │                       ▼                       │
-        │               ┌──────────────────┐            │
-        └──────────────▶│  Cached Results  │◀───────────┘
-                        │  (In Memory)     │
+┌─────────────────┐   SSE    ┌──────────────────┐    ┌─────────────────┐
+│   LLM Client    │─────────▶│  Spring AI MCP   │───▶│   OMDB API      │
+│  (AI Assistant) │   /sse   │     Server       │    │ (omdbapi.com)   │
+└─────────────────┘          └──────────────────┘    └─────────────────┘
+        │                           │                       │
+        │                           ▼                       │
+        │                   ┌──────────────────┐            │
+        │                   │ Function Beans   │            │
+        │                   │   (MCP Tools)    │            │
+        │                   └──────────────────┘            │
+        │                           │                       │
+        │                           ▼                       │
+        │                   ┌──────────────────┐            │
+        └──────────────────▶│  Cached Results  │◀───────────┘
+                            │  (In Memory)     │
+```
+
+### Key Components
+
+- **Spring AI MCP Autoconfiguration**: Automatic server setup and protocol handling
+- **Function Beans**: Tools registered as Spring Function components for auto-discovery
+- **SSE Transport**: Server-Sent Events at `/sse` for real-time bidirectional communication
+- **WebFlux Integration**: Reactive architecture for scalable performance
                         └──────────────────┘
 ```
 
@@ -100,7 +122,13 @@ Once running, verify the server is working:
 
 ```bash
 # Health check
-curl http://localhost:8081/mcp/health
+curl http://localhost:8081/actuator/health
+
+# Check Spring AI MCP server info
+curl http://localhost:8081/actuator/info
+
+# Test SSE endpoint (should establish connection)
+curl -N -H "Accept: text/event-stream" http://localhost:8081/sse
 
 # View API documentation
 open http://localhost:8081/swagger-ui/index.html
@@ -132,56 +160,452 @@ Add this configuration to your Claude Desktop MCP settings:
 
 ### Configuration for Custom MCP Clients
 
-For custom implementations, connect to the MCP server at `http://localhost:8081/mcp` using JSON-RPC 2.0 protocol.
+For custom implementations, connect to the Spring AI MCP server using Server-Sent Events:
+
+**SSE Endpoint**: `http://localhost:8081/sse`  
+**Protocol**: MCP 2024-11-05 over Server-Sent Events  
+**Content-Type**: `text/event-stream`
+
+#### JavaScript/TypeScript Example
+
+```javascript
+// Establish SSE connection to Spring AI MCP Server
+const eventSource = new EventSource('http://localhost:8081/sse');
+
+eventSource.onopen = function(event) {
+    console.log('Connected to Spring AI MCP Server');
+};
+
+eventSource.onmessage = function(event) {
+    const mcpMessage = JSON.parse(event.data);
+    console.log('Received MCP message:', mcpMessage);
+    
+    // Handle MCP protocol messages
+    switch(mcpMessage.method) {
+        case 'initialize':
+            // Handle initialization
+            break;
+        case 'tools/list':
+            // Handle tool listing
+            break;
+        case 'tools/call':
+            // Handle tool execution
+            break;
+    }
+};
+
+eventSource.onerror = function(event) {
+    console.error('SSE connection error:', event);
+};
+```
+
+## Testing with Ollama
+
+[Ollama](https://ollama.ai/) is a popular tool for running large language models locally. While Ollama doesn't natively support MCP, you can test the OMDB MCP Server with Ollama through several approaches:
+
+### Approach 1: Custom MCP Client Bridge
+
+Create a simple bridge application that connects Ollama to the MCP server:
+
+#### Python Bridge Example
+
+```python
+#!/usr/bin/env python3
+"""
+Ollama MCP Bridge - Connect Ollama to OMDB MCP Server
+"""
+import requests
+import json
+import asyncio
+from typing import Dict, Any
+
+class OllamaMcpBridge:
+    def __init__(self, 
+                 ollama_url: str = "http://localhost:11434",
+                 mcp_server_url: str = "http://localhost:8081/sse",
+                 model: str = "llama2"):
+        self.ollama_url = ollama_url
+        self.mcp_server_url = mcp_server_url
+        self.model = model
+        self.request_id = 0
+        
+    def call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
+        """Call MCP server tool via REST API fallback"""
+        self.request_id += 1
+        
+        # Map tool names to REST endpoints
+        tool_endpoints = {
+            "searchMovies": "/api/search/movies",
+            "getMovieDetails": "/api/movie/details", 
+            "getMovieByImdbId": "/api/movie/imdb"
+        }
+        
+        endpoint = tool_endpoints.get(tool_name)
+        if not endpoint:
+            return f"Unknown tool: {tool_name}"
+            
+        try:
+            response = requests.get(
+                f"http://localhost:8081{endpoint}",
+                params=arguments,
+                timeout=30
+            )
+            response.raise_for_status()
+            return response.text
+        except requests.RequestException as e:
+            return f"Error calling {tool_name}: {str(e)}"
+    
+    def process_with_ollama(self, user_query: str) -> str:
+        """Process query with Ollama and handle tool calls"""
+        
+        # System prompt that teaches Ollama about available tools
+        system_prompt = """You are an AI assistant with access to movie database tools. 
+You can search for movies and get detailed information. Available tools:
+
+1. searchMovies(title, year=optional, type=optional) - Search for movies by title
+2. getMovieDetails(title, year=optional, plot=optional) - Get detailed movie information  
+3. getMovieByImdbId(imdbId, plot=optional) - Get movie by IMDB ID
+
+When you need movie information, respond with: TOOL_CALL: toolName(param1=value1, param2=value2)
+Then I will execute the tool and provide the result."""
+
+        messages = [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_query}
+        ]
+        
+        # Call Ollama
+        response = requests.post(
+            f"{self.ollama_url}/api/chat",
+            json={
+                "model": self.model,
+                "messages": messages,
+                "stream": False
+            }
+        )
+        
+        if response.status_code != 200:
+            return f"Error calling Ollama: {response.text}"
+            
+        ollama_response = response.json()["message"]["content"]
+        
+        # Check if Ollama wants to call a tool
+        if "TOOL_CALL:" in ollama_response:
+            tool_call = ollama_response.split("TOOL_CALL:")[1].strip()
+            tool_result = self._parse_and_execute_tool_call(tool_call)
+            
+            # Send tool result back to Ollama
+            messages.append({"role": "assistant", "content": ollama_response})
+            messages.append({"role": "user", "content": f"Tool result: {tool_result}"})
+            
+            final_response = requests.post(
+                f"{self.ollama_url}/api/chat",
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "stream": False
+                }
+            )
+            
+            return final_response.json()["message"]["content"]
+        
+        return ollama_response
+    
+    def _parse_and_execute_tool_call(self, tool_call: str) -> str:
+        """Parse tool call string and execute the appropriate MCP tool"""
+        try:
+            # Simple parsing for toolName(param1=value1, param2=value2)
+            tool_name = tool_call.split("(")[0].strip()
+            params_str = tool_call.split("(")[1].rstrip(")")
+            
+            arguments = {}
+            if params_str:
+                for param in params_str.split(","):
+                    key, value = param.split("=")
+                    arguments[key.strip()] = value.strip().strip("'\"")
+            
+            return self.call_mcp_tool(tool_name, arguments)
+        except Exception as e:
+            return f"Error parsing tool call: {str(e)}"
+
+# Usage example
+def main():
+    bridge = OllamaMcpBridge(model="llama2")  # or "mistral", "codellama", etc.
+    
+    print("Ollama MCP Bridge - OMDB Movie Search")
+    print("Type 'quit' to exit\n")
+    
+    while True:
+        user_input = input("Ask about movies: ")
+        if user_input.lower() == 'quit':
+            break
+            
+        response = bridge.process_with_ollama(user_input)
+        print(f"\nResponse: {response}\n")
+
+if __name__ == "__main__":
+    main()
+```
+
+#### Setup Instructions
+
+1. **Install Ollama**: Follow instructions at [ollama.ai](https://ollama.ai/)
+
+2. **Pull a model**:
+   ```bash
+   ollama pull llama2
+   # or
+   ollama pull mistral
+   # or 
+   ollama pull codellama
+   ```
+
+3. **Start the OMDB MCP Server**:
+   ```bash
+   export OMDB_API_KEY=your-api-key-here
+   java -jar omdb-mcp-server.jar
+   ```
+
+4. **Run the bridge script**:
+   ```bash
+   pip install requests
+   python ollama_mcp_bridge.py
+   ```
+
+### Approach 2: Direct API Testing
+
+You can also test the MCP server functionality directly by calling its REST endpoints and then using Ollama to process the results:
+
+```bash
+#!/bin/bash
+# Test script for Ollama + OMDB MCP integration
+
+# Function to search movies and get Ollama analysis
+test_movie_with_ollama() {
+    local movie_title="$1"
+    local year="$2"
+    
+    echo "🎬 Searching for: $movie_title ($year)"
+    
+    # Get movie data from MCP server
+    movie_data=$(curl -s "http://localhost:8081/api/movie/details?title=${movie_title}&year=${year}")
+    
+    # Create prompt for Ollama
+    prompt="Analyze this movie data and provide a brief, engaging summary:\n\n${movie_data}\n\nProvide: 1) A concise plot summary, 2) Notable cast and director, 3) Critical reception, 4) Why someone might want to watch it."
+    
+    # Send to Ollama for analysis
+    ollama_response=$(curl -s http://localhost:11434/api/generate \
+        -d "{
+            \"model\": \"llama2\",
+            \"prompt\": \"$prompt\",
+            \"stream\": false
+        }" | jq -r '.response')
+    
+    echo "🤖 Ollama Analysis:"
+    echo "$ollama_response"
+    echo ""
+}
+
+# Test with different movies
+test_movie_with_ollama "The Matrix" "1999"
+test_movie_with_ollama "Inception" "2010"
+test_movie_with_ollama "Parasite" "2019"
+```
+
+### Approach 3: Ollama Function Calling (Advanced)
+
+Some newer Ollama models support function calling. Here's an example using a function calling capable model:
+
+```python
+import requests
+import json
+
+def test_ollama_function_calling():
+    """Test with Ollama models that support function calling"""
+    
+    # Define available functions for Ollama
+    functions = [
+        {
+            "name": "search_movies",
+            "description": "Search for movies by title, year, and type",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Movie title to search for"},
+                    "year": {"type": "string", "description": "Release year (optional)"},
+                    "type": {"type": "string", "description": "Type: movie, series, or episode (optional)"}
+                },
+                "required": ["title"]
+            }
+        },
+        {
+            "name": "get_movie_details", 
+            "description": "Get detailed information about a specific movie",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string", "description": "Movie title"},
+                    "year": {"type": "string", "description": "Release year (optional)"},
+                    "plot": {"type": "string", "description": "Plot length: short or full (optional)"}
+                },
+                "required": ["title"]
+            }
+        }
+    ]
+    
+    # Chat with function calling
+    messages = [
+        {
+            "role": "system", 
+            "content": "You are a movie expert assistant. Use the available functions to search for and retrieve movie information when users ask about films."
+        },
+        {
+            "role": "user",
+            "content": "Tell me about the movie Dune from 2021"
+        }
+    ]
+    
+    # Call Ollama with function definitions (requires compatible model)
+    response = requests.post(
+        "http://localhost:11434/api/chat",
+        json={
+            "model": "mistral",  # or another function-calling capable model
+            "messages": messages,
+            "functions": functions,
+            "stream": False
+        }
+    )
+    
+    return response.json()
+
+# Usage
+if __name__ == "__main__":
+    result = test_ollama_function_calling()
+    print(json.dumps(result, indent=2))
+```
+
+### Prerequisites for Ollama Testing
+
+1. **Ollama Installation**: 
+   ```bash
+   # macOS
+   brew install ollama
+   
+   # Or download from https://ollama.ai/
+   ```
+
+2. **Start Ollama service**:
+   ```bash
+   ollama serve
+   ```
+
+3. **Pull a compatible model**:
+   ```bash
+   # For general chat and bridge approach
+   ollama pull llama2
+   ollama pull mistral
+   
+   # For function calling (if supported)
+   ollama pull mistral:latest
+   ```
+
+4. **OMDB MCP Server running**:
+   ```bash
+   export OMDB_API_KEY=your-api-key-here
+   java -jar omdb-mcp-server.jar
+   ```
+
+### Testing Workflow
+
+1. **Start both servers**:
+   ```bash
+   # Terminal 1: Start OMDB MCP Server
+   export OMDB_API_KEY=your-api-key-here
+   java -jar omdb-mcp-server.jar
+   
+   # Terminal 2: Start Ollama
+   ollama serve
+   ```
+
+2. **Test the bridge**:
+   ```bash
+   python ollama_mcp_bridge.py
+   ```
+
+3. **Example conversation**:
+   ```
+   Ask about movies: What can you tell me about The Matrix from 1999?
+   
+   Response: TOOL_CALL: getMovieDetails(title=The Matrix, year=1999)
+   
+   [Bridge executes tool call...]
+   
+   Final Response: The Matrix (1999) is a groundbreaking science fiction film 
+   directed by the Wachowski sisters. It stars Keanu Reeves as Neo, a computer 
+   programmer who discovers that reality as he knows it is actually a simulated 
+   world created by machines...
+   ```
+
+### Benefits of Ollama + MCP Integration
+
+- **Local Processing**: Run LLMs completely locally while accessing external data
+- **Privacy**: No data sent to external LLM services
+- **Customization**: Fine-tune models for movie-specific tasks
+- **Cost Effective**: No API costs for LLM inference
+- **Offline Capable**: Works without internet (except for OMDB API calls)
+
+### Limitations and Considerations
+
+- **Manual Integration**: Requires custom bridge code since Ollama doesn't natively support MCP
+- **Model Capabilities**: Function calling support varies by model
+- **Performance**: Local models may be slower than cloud-based solutions
+- **Context Management**: Need to handle conversation state manually
+- **Tool Calling**: Limited compared to specialized MCP clients like Claude Desktop
+
+This approach is particularly useful for developers who want to:
+- Test MCP servers with local models
+- Build custom movie recommendation systems
+- Create offline-capable movie chatbots
+- Prototype MCP integrations before deploying to production
 
 ## Tool Usage Patterns
 
-### 1. Initialize Connection
+### 1. Spring AI MCP Automatic Tool Discovery
 
-Before using any tools, initialize the MCP connection:
+Spring AI MCP Server automatically handles protocol initialization and tool discovery through Function bean registration. The server exposes three tools as registered Function beans:
 
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "1",
-  "method": "initialize",
-  "params": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {},
-    "clientInfo": {
-      "name": "my-llm-client",
-      "version": "1.0.0"
+- `searchMovies`: Search for movies by title and optional year
+- `getMovieDetails`: Get detailed information about a specific movie  
+- `getMovieByImdbId`: Retrieve movie information using IMDB ID
+
+### 2. Function Bean Registration
+
+Tools are automatically registered via Spring configuration:
+
+```java
+@Configuration
+public class McpServerConfig {
+    
+    @Bean
+    public Function<SearchMoviesRequest, String> searchMovies(MovieSearchTools movieSearchTools) {
+        return movieSearchTools::searchMovies;
     }
-  }
+    
+    @Bean  
+    public Function<GetMovieDetailsRequest, String> getMovieDetails(MovieSearchTools movieSearchTools) {
+        return movieSearchTools::getMovieDetails;
+    }
+    
+    @Bean
+    public Function<GetMovieByImdbIdRequest, String> getMovieByImdbId(MovieSearchTools movieSearchTools) {
+        return movieSearchTools::getMovieByImdbId;
+    }
 }
 ```
 
-**Response:**
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "1",
-  "result": {
-    "protocolVersion": "2024-11-05",
-    "capabilities": {
-      "tools": {}
-    },
-    "serverInfo": {
-      "name": "OMDB Movie Database Server",
-      "version": "1.0.0"
-    }
-  }
-}
-```
+### 3. Tool Discovery (Handled by Spring AI)
 
-### 2. Discover Available Tools
-
-```json
-{
-  "jsonrpc": "2.0",
-  "id": "2",
-  "method": "tools/list"
-}
+Spring AI automatically handles tool discovery requests from MCP clients. When a client requests available tools, Spring AI responds with the registered Function beans and their schemas.
 ```
 
 This returns a list of all available tools with their schemas and descriptions.
@@ -314,6 +738,36 @@ This returns a list of all available tools with their schemas and descriptions.
 
 ## Best Practices
 
+### For Spring AI MCP Integration
+
+1. **SSE Connection Management**: Maintain persistent SSE connections for optimal performance
+   ```javascript
+   // Handle connection drops and reconnect
+   eventSource.onerror = function(event) {
+       console.error('SSE connection lost, reconnecting...');
+       setTimeout(() => {
+           eventSource = new EventSource('http://localhost:8081/sse');
+       }, 5000);
+   };
+   ```
+
+2. **Function Bean Configuration**: Ensure proper typing for Function beans
+   ```java
+   // Use strongly-typed request/response records
+   @Bean
+   public Function<SearchMoviesRequest, String> searchMovies(MovieSearchTools tools) {
+       return tools::searchMovies;
+   }
+   ```
+
+3. **Spring AI Autoconfiguration**: Leverage Spring AI's MCP autoconfiguration
+   ```properties
+   # Enable Spring AI MCP server
+   spring.ai.mcp.server.enabled=true
+   spring.ai.mcp.server.type=ASYNC
+   spring.ai.mcp.server.transport.type=SSE
+   ```
+
 ### For LLM Developers
 
 1. **Error Handling**: Always check for error responses and handle them gracefully
@@ -334,9 +788,9 @@ This returns a list of all available tools with their schemas and descriptions.
 3. **Rate Limiting**: While the server handles OMDB API rate limits, be mindful of making excessive requests
 
 4. **Search Strategy**: 
-   - Start with broad searches using `search_movies`
-   - Use specific details with `get_movie_details` for exact matches
-   - Use `get_movie_by_imdb_id` when you have the exact IMDB ID
+   - Start with broad searches using `searchMovies`
+   - Use specific details with `getMovieDetails` for exact matches
+   - Use `getMovieByImdbId` when you have the exact IMDB ID
 
 ### For End Users
 
@@ -403,62 +857,79 @@ When a movie isn't found, the server returns a successful response with an error
 
 ## Troubleshooting
 
-### Server Issues
+### Spring AI MCP Server Issues
 
 1. **Server Won't Start**
-   - Check Java version (requires Java 23+)
+   - Check Java version (requires Java 24+)
    - Verify OMDB API key is set correctly
    - Check port 8081 isn't already in use
+   - Ensure Spring AI 1.0.0 dependencies are available
 
-2. **API Key Issues**
+2. **SSE Connection Issues**
+   - Verify SSE endpoint is accessible: `curl -N -H "Accept: text/event-stream" http://localhost:8081/sse`
+   - Check browser/client supports Server-Sent Events
+   - Monitor network timeouts and connection drops
+
+3. **Function Bean Registration**
+   - Verify Function beans are properly configured in McpServerConfig
+   - Check Spring component scanning includes your configuration package
+   - Review Spring Boot startup logs for Function bean registration
+
+### API Key Issues
+
+1. **OMDB API Problems**
    - Verify your OMDB API key at http://www.omdbapi.com/
    - Check environment variable is set: `echo $OMDB_API_KEY`
    - For free keys, check daily request limits
-
-3. **Network Issues**
-   - Verify server is running: `curl http://localhost:8081/mcp/health`
-   - Check firewall settings
-   - Verify Docker port mapping (if using Docker)
+   - Monitor server logs for OMDB API responses
 
 ### LLM Integration Issues
 
-1. **Connection Refused**
-   - Check MCP server is running and accessible
-   - Verify correct server URL and port in MCP configuration
-   - Check network connectivity
+1. **MCP Connection Issues**
+   - Check Spring AI MCP server is running: `curl http://localhost:8081/actuator/health`
+   - Verify SSE endpoint responds: `curl -N http://localhost:8081/sse`
+   - Check firewall settings and network connectivity
 
-2. **Tool Not Available**
-   - Verify MCP initialization was successful
-   - Check tool names match exactly: `search_movies`, `get_movie_details`, `get_movie_by_imdb_id`
-   - Review tool list response for available tools
+2. **Tool Discovery Problems**
+   - Verify Spring AI MCP autoconfiguration is enabled
+   - Check Function beans are registered and discoverable
+   - Review Spring Boot startup logs for MCP server initialization
 
-3. **Authentication Errors**
-   - Check OMDB API key is valid and not expired
-   - Verify API key has sufficient quota
-   - Monitor server logs for OMDB API errors
+3. **Tool Execution Errors**
+   - Verify Function bean parameter types match request records
+   - Check for proper error handling in Function implementations
+   - Monitor Spring AI MCP server logs for execution traces
 
 ### Debugging Tips
 
 1. **Enable Debug Logging**
-   ```bash
-   # Add to application.properties or environment
-   LOGGING_LEVEL_CO_TYRELL_OMDB_MCP_SERVER=DEBUG
+   ```properties
+   # Add to application.properties
+   logging.level.co.tyrell.omdb_mcp_server=DEBUG
+   logging.level.org.springframework.ai.mcp=DEBUG
+   logging.level.org.springframework.web.reactive=DEBUG
    ```
 
-2. **Monitor Cache Statistics**
+2. **Monitor Spring AI MCP Components**
+   ```bash
+   # Check Spring AI MCP autoconfiguration
+   curl http://localhost:8081/actuator/configprops | jq '.contexts.application.beans | with_entries(select(.key | contains("mcp")))'
+   
+   # Monitor Function bean registration
+   curl http://localhost:8081/actuator/beans | jq '.contexts.application.beans | with_entries(select(.key | contains("search") or contains("movie")))'
+   ```
+
+3. **Test SSE Connection**
+   ```bash
+   # Test SSE endpoint manually
+   curl -N -H "Accept: text/event-stream" \
+        -H "Cache-Control: no-cache" \
+        http://localhost:8081/sse
+   ```
+
+4. **Monitor Cache Performance**
    ```bash
    curl http://localhost:8081/cache/stats | jq
-   ```
-
-3. **Test MCP Protocol Directly**
-   ```bash
-   # Use the provided test script
-   ./test-mcp-server.sh
-   ```
-
-4. **Check Server Health**
-   ```bash
-   curl http://localhost:8081/actuator/health
    ```
 
 ## Advanced Configuration

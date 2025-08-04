@@ -5,24 +5,22 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.cache.CacheManager;
 import org.springframework.cache.caffeine.CaffeineCache;
-import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.reactive.server.WebTestClient;
 
 import java.util.Set;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(CacheController.class)
+@WebFluxTest(CacheController.class)
 class CacheControllerTest {
 
     @Autowired
-    private MockMvc mockMvc;
+    private WebTestClient webTestClient;
 
     @MockBean
     private CacheManager cacheManager;
@@ -41,9 +39,11 @@ class CacheControllerTest {
         when(cacheManager.getCacheNames()).thenReturn(Set.of(CacheConfig.MOVIE_SEARCH_CACHE));
         when(cacheManager.getCache(CacheConfig.MOVIE_SEARCH_CACHE)).thenReturn(mockCaffeineCache);
 
-        mockMvc.perform(get("/cache/stats"))
-                .andExpect(status().isOk())
-                .andExpect(content().contentType("application/json"));
+        webTestClient.get()
+                .uri("/cache/stats")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType("application/json");
     }
 
     @Test
@@ -54,9 +54,12 @@ class CacheControllerTest {
         when(cacheManager.getCacheNames()).thenReturn(Set.of(CacheConfig.MOVIE_SEARCH_CACHE));
         when(cacheManager.getCache(CacheConfig.MOVIE_SEARCH_CACHE)).thenReturn(mockCaffeineCache);
 
-        mockMvc.perform(delete("/cache/clear"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("All caches cleared successfully"));
+        webTestClient.delete()
+                .uri("/cache/clear")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("All caches cleared successfully");
     }
 
     @Test
@@ -66,17 +69,23 @@ class CacheControllerTest {
         
         when(cacheManager.getCache(CacheConfig.MOVIE_SEARCH_CACHE)).thenReturn(mockCaffeineCache);
 
-        mockMvc.perform(delete("/cache/clear/" + CacheConfig.MOVIE_SEARCH_CACHE))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Cache '" + CacheConfig.MOVIE_SEARCH_CACHE + "' cleared successfully"));
+        webTestClient.delete()
+                .uri("/cache/clear/" + CacheConfig.MOVIE_SEARCH_CACHE)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.message").isEqualTo("Cache '" + CacheConfig.MOVIE_SEARCH_CACHE + "' cleared successfully");
     }
 
     @Test
     void testClearNonExistentCache() throws Exception {
         when(cacheManager.getCache("nonexistent")).thenReturn(null);
 
-        mockMvc.perform(delete("/cache/clear/nonexistent"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.error").value("Cache 'nonexistent' not found"));
+        webTestClient.delete()
+                .uri("/cache/clear/nonexistent")
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.error").isEqualTo("Cache 'nonexistent' not found");
     }
 }
