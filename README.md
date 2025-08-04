@@ -152,33 +152,33 @@ A Model Context Protocol (MCP) Server powered by **Spring AI** that provides acc
                            │
                            ▼
                    ┌─────────────────┐
-                   │MovieSearchTools │◀─┐
-                   │ (Function Impl) │  │
-                   └─────────────────┘  │
-                           │            │
-                           ▼            │
-                   ┌─────────────────┐  │
-                   │  OMDB Service   │  │
-                   │ (External API)  │  │
-                   └─────────────────┘  │
-                           │            │
-                           ▼            │
-┌─────────────────┐ ┌─────────────────┐ │
-│ Cache Manager   │ │  Caffeine Cache │ │
-│   (Statistics)  │ │  (In-Memory)    │ │
-└─────────────────┘ └─────────────────┘ │
-        │                     ▲         │
-        │                     │         │
-        ▼              Cache Miss       │
-┌─────────────────┐          │          │
-│ Cache Endpoints │          │          │
-│ /cache/stats    │          ▼          │
-│ /cache/clear    │   ┌─────────────────┐│
-└─────────────────┘   │   OMDB API      ││
-                      │ (omdbapi.com)   ││
-                      └─────────────────┘│
-                           │            │
-                           └────────────┘
+                   │MovieSearchTools │◀─--┐
+                   │ (Function Impl) │    │
+                   └─────────────────┘    │
+                           │              │
+                           ▼              │
+                   ┌─────────────────┐    │
+                   │  OMDB Service   │    │
+                   │ (External API)  │    │
+                   └─────────────────┘    │
+                           │              │
+                           ▼              │
+┌─────────────────┐ ┌─────────────────┐   │
+│ Cache Manager   │ │  Caffeine Cache │   │
+│   (Statistics)  │ │  (In-Memory)    │   │
+└─────────────────┘ └─────────────────┘   │
+        │                     ▲           │
+        │                     │           │
+        ▼                Cache Miss       │
+┌─────────────────┐           │           │
+│ Cache Endpoints │           │           │
+│ /cache/stats    │           ▼           │
+│ /cache/clear    │   ┌─────────────────┐ │
+└─────────────────┘   │   OMDB API      │ │
+                      │ (omdbapi.com)   │ │
+                      └─────────────────┘ │
+                           │              │
+                           └────────────--┘
                          Cache Hit
 ```
 
