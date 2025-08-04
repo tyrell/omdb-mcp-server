@@ -220,28 +220,37 @@ class OllamaMcpBridge:
         self.request_id = 0
         
     def call_mcp_tool(self, tool_name: str, arguments: Dict[str, Any]) -> str:
-        """Call MCP server tool via REST API fallback"""
+        """Call MCP server tool via MCP protocol"""
         self.request_id += 1
         
-        # Map tool names to REST endpoints
-        tool_endpoints = {
-            "searchMovies": "/api/search/movies",
-            "getMovieDetails": "/api/movie/details", 
-            "getMovieByImdbId": "/api/movie/imdb"
+        # Create MCP tool call request
+        mcp_request = {
+            "jsonrpc": "2.0",
+            "id": str(self.request_id),
+            "method": "tools/call",
+            "params": {
+                "name": tool_name,
+                "arguments": arguments
+            }
         }
         
-        endpoint = tool_endpoints.get(tool_name)
-        if not endpoint:
-            return f"Unknown tool: {tool_name}"
-            
         try:
-            response = requests.get(
-                f"http://localhost:8081{endpoint}",
-                params=arguments,
+            response = requests.post(
+                "http://localhost:8081/mcp",
+                json=mcp_request,
+                headers={"Content-Type": "application/json"},
                 timeout=30
             )
             response.raise_for_status()
-            return response.text
+            
+            mcp_response = response.json()
+            if "result" in mcp_response and "content" in mcp_response["result"]:
+                # Extract text content from MCP response
+                content_items = mcp_response["result"]["content"]
+                if content_items and len(content_items) > 0:
+                    return content_items[0].get("text", "No content available")
+            
+            return f"Error: {mcp_response.get('error', 'Unknown MCP error')}"
         except requests.RequestException as e:
             return f"Error calling {tool_name}: {str(e)}"
     
@@ -362,23 +371,45 @@ if __name__ == "__main__":
    python ollama_mcp_bridge.py
    ```
 
-### Approach 2: Direct API Testing
+### Approach 2: Direct MCP Protocol Testing
 
-You can also test the MCP server functionality directly by calling its REST endpoints and then using Ollama to process the results:
+You can also test the MCP server functionality directly by calling the MCP protocol and then using Ollama to process the results:
 
 ```bash
 #!/bin/bash
 # Test script for Ollama + OMDB MCP integration
 
-# Function to search movies and get Ollama analysis
+# Function to call MCP server and get Ollama analysis
 test_movie_with_ollama() {
     local movie_title="$1"
     local year="$2"
     
     echo "🎬 Searching for: $movie_title ($year)"
     
+    # Create MCP request for movie details
+    mcp_request=$(cat <<EOF
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "method": "tools/call",
+  "params": {
+    "name": "get_movie_details",
+    "arguments": {
+      "title": "$movie_title",
+      "year": "$year"
+    }
+  }
+}
+EOF
+)
+    
     # Get movie data from MCP server
-    movie_data=$(curl -s "http://localhost:8081/api/movie/details?title=${movie_title}&year=${year}")
+    mcp_response=$(curl -s -X POST "http://localhost:8081/mcp" \
+        -H "Content-Type: application/json" \
+        -d "$mcp_request")
+    
+    # Extract movie data from MCP response
+    movie_data=$(echo "$mcp_response" | jq -r '.result.content[0].text // "No movie data available"')
     
     # Create prompt for Ollama
     prompt="Analyze this movie data and provide a brief, engaging summary:\n\n${movie_data}\n\nProvide: 1) A concise plot summary, 2) Notable cast and director, 3) Critical reception, 4) Why someone might want to watch it."
