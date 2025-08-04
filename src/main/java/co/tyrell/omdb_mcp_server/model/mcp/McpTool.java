@@ -3,9 +3,10 @@ package co.tyrell.omdb_mcp_server.model.mcp;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 
 /**
- * MCP Tool definition
+ * Enhanced MCP Tool definition with proper JSON Schema support
  */
 @Data
 public class McpTool {
@@ -16,22 +17,20 @@ public class McpTool {
     @Data
     public static class InputSchema {
         private String type = "object";
-        private Properties properties;
+        private Map<String, Property> properties;
         private List<String> required;
+        private Boolean additionalProperties = false;
         
         @Data
-        public static class Properties {
-            private Property title;
-            private Property year;
-            private Property type;
-            private Property plot;
-            private Property imdbId;
-            
-            @Data
-            public static class Property {
-                private String type;
-                private String description;
-            }
+        public static class Property {
+            private String type;
+            private String description;
+            private List<String> enumValues; // for enum constraints
+            private String pattern; // for regex patterns
+            private Integer minLength;
+            private Integer maxLength;
+            private Object defaultValue;
+            private List<String> examples;
         }
     }
 }

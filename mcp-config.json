@@ -4,10 +4,12 @@
       "command": "java",
       "args": [
         "-jar",
-        "target/omdb-mcp-server-0.0.1-SNAPSHOT.jar"
+        "target/omdb-mcp-server-0.0.1-SNAPSHOT.jar",
+        "--stdio"
       ],
       "env": {
-        "OMDB_API_KEY": "your-actual-api-key-here"
+        "OMDB_API_KEY": "your-actual-api-key-here",
+        "MCP_STDIO_ENABLED": "true"
       }
     }
   }

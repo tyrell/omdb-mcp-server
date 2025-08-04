@@ -6,6 +6,8 @@ import co.tyrell.omdb_mcp_server.model.mcp.McpResponse;
 import co.tyrell.omdb_mcp_server.model.mcp.McpTool;
 import co.tyrell.omdb_mcp_server.model.omdb.OmdbMovie;
 import co.tyrell.omdb_mcp_server.model.omdb.OmdbSearchResponse;
+// Make sure OmdbService exists at this package path, or update the import to the correct location.
+import co.tyrell.omdb_mcp_server.service.OmdbService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -40,6 +42,8 @@ public class McpService {
             case "initialize" -> handleInitialize(request, response);
             case "tools/list" -> handleToolsList(request, response);
             case "tools/call" -> handleToolCall(request, response);
+            case "ping" -> handlePing(request, response);
+            case "notifications/initialized" -> handleInitialized(request, response);
             default -> {
                 response.setError(createError(-32601, "Method not found", null));
                 yield Mono.just(response);
@@ -48,16 +52,63 @@ public class McpService {
     }
     
     private Mono<McpResponse> handleInitialize(McpRequest request, McpResponse response) {
+        // Validate client protocol version
+        Map<String, Object> params = request.getParams();
+        if (params != null) {
+            String clientProtocolVersion = (String) params.get("protocolVersion");
+            if (clientProtocolVersion != null && !clientProtocolVersion.equals("2024-11-05")) {
+                log.warn("Client protocol version mismatch: {} (expected: 2024-11-05)", clientProtocolVersion);
+            }
+            
+            // Log client info for debugging
+            @SuppressWarnings("unchecked")
+            Map<String, Object> clientInfo = (Map<String, Object>) params.get("clientInfo");
+            if (clientInfo != null) {
+                log.info("Client connected: {} v{}", 
+                    clientInfo.get("name"), 
+                    clientInfo.get("version"));
+            }
+        }
+        
         Map<String, Object> result = new HashMap<>();
         result.put("protocolVersion", "2024-11-05");
-        result.put("capabilities", Map.of("tools", Map.of()));
-        result.put("serverInfo", Map.of(
-                "name", mcpProperties.getName(),
-                "version", mcpProperties.getVersion()
-        ));
+        
+        // Declare server capabilities according to MCP spec
+        Map<String, Object> capabilities = new HashMap<>();
+        Map<String, Object> toolsCapability = new HashMap<>();
+        toolsCapability.put("listChanged", false); // Tools list is static
+        capabilities.put("tools", toolsCapability);
+        
+        // Add logging capability if needed
+        Map<String, Object> loggingCapability = new HashMap<>();
+        loggingCapability.put("level", "info");
+        capabilities.put("logging", loggingCapability);
+        
+        result.put("capabilities", capabilities);
+        
+        Map<String, Object> serverInfo = new HashMap<>();
+        serverInfo.put("name", mcpProperties.getName());
+        serverInfo.put("version", mcpProperties.getVersion());
+        serverInfo.put("description", mcpProperties.getDescription());
+        result.put("serverInfo", serverInfo);
         
         response.setResult(result);
         return Mono.just(response);
+    }
+    
+    private Mono<McpResponse> handlePing(McpRequest request, McpResponse response) {
+        // Simple ping/pong for connection testing
+        Map<String, Object> result = new HashMap<>();
+        result.put("pong", true);
+        response.setResult(result);
+        return Mono.just(response);
+    }
+    
+    private Mono<McpResponse> handleInitialized(McpRequest request, McpResponse response) {
+        // Handle the initialized notification (no response needed for notifications)
+        log.info("Client initialization completed");
+        // For notifications, we don't send a response
+        return Mono.empty();
     }
     
     private Mono<McpResponse> handleToolsList(McpRequest request, McpResponse response) {
@@ -199,10 +250,14 @@ public class McpService {
         StringBuilder sb = new StringBuilder();
         sb.append("Search Results (").append(searchResponse.getTotalResults()).append(" total):\n\n");
         
-        for (OmdbSearchResponse.SearchResult result : searchResponse.getSearch()) {
-            sb.append("• ").append(result.getTitle()).append(" (").append(result.getYear()).append(")\n");
-            sb.append("  Type: ").append(result.getType()).append("\n");
-            sb.append("  IMDB ID: ").append(result.getImdbId()).append("\n\n");
+        if (searchResponse.getSearch() != null) {
+            for (int i = 0; i < searchResponse.getSearch().length; i++) {
+                OmdbSearchResponse.SearchResult movie = searchResponse.getSearch()[i];
+                sb.append(i + 1).append(". ");
+                sb.append(movie.getTitle()).append(" (").append(movie.getYear()).append(")\n");
+                sb.append("   Type: ").append(movie.getType()).append("\n");
+                sb.append("   IMDB ID: ").append(movie.getImdbId()).append("\n\n");
+            }
         }
         
         return sb.toString();
@@ -235,25 +290,36 @@ public class McpService {
         tool.setDescription("Search for movies by title in the OMDB database");
         
         McpTool.InputSchema schema = new McpTool.InputSchema();
-        McpTool.InputSchema.Properties properties = new McpTool.InputSchema.Properties();
+        Map<String, McpTool.InputSchema.Property> properties = new HashMap<>();
         
-        McpTool.InputSchema.Properties.Property titleProp = new McpTool.InputSchema.Properties.Property();
+        // Title property (required)
+        McpTool.InputSchema.Property titleProp = new McpTool.InputSchema.Property();
         titleProp.setType("string");
         titleProp.setDescription("Movie title to search for");
-        properties.setTitle(titleProp);
+        titleProp.setMinLength(1);
+        titleProp.setMaxLength(100);
+        titleProp.setExamples(List.of("The Matrix", "Inception", "Avatar"));
+        properties.put("title", titleProp);
         
-        McpTool.InputSchema.Properties.Property yearProp = new McpTool.InputSchema.Properties.Property();
+        // Year property (optional)
+        McpTool.InputSchema.Property yearProp = new McpTool.InputSchema.Property();
         yearProp.setType("string");
-        yearProp.setDescription("Year of release (optional)");
-        properties.setYear(yearProp);
+        yearProp.setDescription("Year of release (optional, format: YYYY)");
+        yearProp.setPattern("^\\d{4}$");
+        yearProp.setExamples(List.of("1999", "2010", "2023"));
+        properties.put("year", yearProp);
         
-        McpTool.InputSchema.Properties.Property typeProp = new McpTool.InputSchema.Properties.Property();
+        // Type property (optional)
+        McpTool.InputSchema.Property typeProp = new McpTool.InputSchema.Property();
         typeProp.setType("string");
-        typeProp.setDescription("Type of result: movie, series, or episode (optional)");
-        properties.setType(typeProp);
+        typeProp.setDescription("Type of result (optional)");
+        typeProp.setEnumValues(List.of("movie", "series", "episode"));
+        typeProp.setDefaultValue("movie");
+        properties.put("type", typeProp);
         
         schema.setProperties(properties);
         schema.setRequired(List.of("title"));
+        schema.setAdditionalProperties(false);
         tool.setInputSchema(schema);
         
         return tool;
@@ -265,25 +331,34 @@ public class McpService {
         tool.setDescription("Get detailed information about a specific movie by title");
         
         McpTool.InputSchema schema = new McpTool.InputSchema();
-        McpTool.InputSchema.Properties properties = new McpTool.InputSchema.Properties();
+        Map<String, McpTool.InputSchema.Property> properties = new HashMap<>();
         
-        McpTool.InputSchema.Properties.Property titleProp = new McpTool.InputSchema.Properties.Property();
+        // Title property (required)
+        McpTool.InputSchema.Property titleProp = new McpTool.InputSchema.Property();
         titleProp.setType("string");
         titleProp.setDescription("Movie title");
-        properties.setTitle(titleProp);
+        titleProp.setMinLength(1);
+        titleProp.setMaxLength(100);
+        properties.put("title", titleProp);
         
-        McpTool.InputSchema.Properties.Property yearProp = new McpTool.InputSchema.Properties.Property();
+        // Year property (optional)
+        McpTool.InputSchema.Property yearProp = new McpTool.InputSchema.Property();
         yearProp.setType("string");
         yearProp.setDescription("Year of release (optional)");
-        properties.setYear(yearProp);
+        yearProp.setPattern("^\\d{4}$");
+        properties.put("year", yearProp);
         
-        McpTool.InputSchema.Properties.Property plotProp = new McpTool.InputSchema.Properties.Property();
+        // Plot property (optional)
+        McpTool.InputSchema.Property plotProp = new McpTool.InputSchema.Property();
         plotProp.setType("string");
         plotProp.setDescription("Plot length: short or full (optional, default: full)");
-        properties.setPlot(plotProp);
+        plotProp.setEnumValues(List.of("short", "full"));
+        plotProp.setDefaultValue("full");
+        properties.put("plot", plotProp);
         
         schema.setProperties(properties);
         schema.setRequired(List.of("title"));
+        schema.setAdditionalProperties(false);
         tool.setInputSchema(schema);
         
         return tool;
@@ -295,20 +370,27 @@ public class McpService {
         tool.setDescription("Get detailed information about a movie by IMDB ID");
         
         McpTool.InputSchema schema = new McpTool.InputSchema();
-        McpTool.InputSchema.Properties properties = new McpTool.InputSchema.Properties();
+        Map<String, McpTool.InputSchema.Property> properties = new HashMap<>();
         
-        McpTool.InputSchema.Properties.Property imdbIdProp = new McpTool.InputSchema.Properties.Property();
+        // IMDB ID property (required)
+        McpTool.InputSchema.Property imdbIdProp = new McpTool.InputSchema.Property();
         imdbIdProp.setType("string");
         imdbIdProp.setDescription("IMDB ID (e.g., tt0111161)");
-        properties.setImdbId(imdbIdProp);
+        imdbIdProp.setPattern("^tt\\d{7,8}$");
+        imdbIdProp.setExamples(List.of("tt0111161", "tt0133093", "tt0468569"));
+        properties.put("imdbId", imdbIdProp);
         
-        McpTool.InputSchema.Properties.Property plotProp = new McpTool.InputSchema.Properties.Property();
+        // Plot property (optional)
+        McpTool.InputSchema.Property plotProp = new McpTool.InputSchema.Property();
         plotProp.setType("string");
         plotProp.setDescription("Plot length: short or full (optional, default: full)");
-        properties.setPlot(plotProp);
+        plotProp.setEnumValues(List.of("short", "full"));
+        plotProp.setDefaultValue("full");
+        properties.put("plot", plotProp);
         
         schema.setProperties(properties);
         schema.setRequired(List.of("imdbId"));
+        schema.setAdditionalProperties(false);
         tool.setInputSchema(schema);
         
         return tool;

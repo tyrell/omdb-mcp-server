@@ -36,12 +36,15 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
     - [Environment Variables](#environment-variables)
     - [Cache Configuration](#cache-configuration)
     - [Docker Compose](#docker-compose)
+    - [Stdio Transport for MCP Clients](#stdio-transport-for-mcp-clients)
   - [MCP Tools](#mcp-tools)
     - [1. search\_movies](#1-search_movies)
     - [2. get\_movie\_details](#2-get_movie_details)
     - [3. get\_movie\_by\_imdb\_id](#3-get_movie_by_imdb_id)
   - [MCP Protocol Implementation](#mcp-protocol-implementation)
+    - [Supported Methods](#supported-methods)
     - [Initialize](#initialize)
+    - [Ping](#ping)
     - [List Tools](#list-tools)
   - [Configuration](#configuration)
     - [Core Configuration](#core-configuration)
@@ -89,9 +92,12 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 
 ### 🔌 MCP Protocol Compliance
 - **MCP 2024-11-05**: Fully implements the latest MCP specification
-- **JSON-RPC 2.0**: Standard protocol for communication
-- **Tool Discovery**: Dynamic tool listing and schema validation
-- **Error Handling**: Comprehensive error responses and validation
+- **Multiple Transports**: Supports both HTTP REST and stdin/stdout communication
+- **Stdio Transport**: Primary MCP transport method for AI clients like Claude Desktop
+- **JSON-RPC 2.0**: Standard protocol with proper error codes (-32700, -32600, -32601, -32602, -32603)
+- **Tool Discovery**: Dynamic tool listing with JSON Schema validation
+- **Enhanced Schemas**: Rich metadata, validation rules, and examples for better AI understanding
+- **Protocol Methods**: Full support for initialize, ping, tools/list, tools/call, and notifications
 
 ### 🚀 Production Ready
 - **Docker Support**: Multi-platform container images (AMD64/ARM64)
@@ -121,39 +127,60 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
 
 ### Architecture Overview
 ```
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
-│   MCP Client    │───▶│  MCP Controller  │───▶│   MCP Service   │
-│  (AI Assistant) │    │  (REST Layer)    │    │ (Protocol Impl) │
-└─────────────────┘    └──────────────────┘    └─────────────────┘
-                                                        │
-                                                        ▼
-                                                ┌─────────────────┐
-                                                │  OMDB Service   │◀─┐
-                                                │ (External API)  │  │
-                                                └─────────────────┘  │
-                                                        │            │
-                                                        ▼            │
-┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐   │
-│ Cache Manager   │───▶│  Caffeine Cache  │    │   OMDB API      │   │
-│   (Statistics)  │    │  (In-Memory)     │    │ (omdbapi.com)   │   │
-└─────────────────┘    └──────────────────┘    └─────────────────┘   │
-        │                       ▲                       │            │
-        │                       └───── Cache Miss ──────┘            │
-        ▼                                                            │
-┌─────────────────┐                                                  │
-│ Cache Endpoints │                                                  │
-│ /cache/stats    │                                                  │
-│ /cache/clear    │                              Cache Hit ─────────-┘
-└─────────────────┘
+                    ┌─────────────────┐
+                    │   MCP Client    │
+                    │ (Claude Desktop)│
+                    └─────────────────┘
+                           │
+                    ┌──────┴──────┐
+                    │             │
+           ┌────────▼─────┐ ┌─────▼──────────┐
+           │ Stdio        │ │ HTTP REST      │
+           │ Transport    │ │ Controller     │
+           │ (stdin/out)  │ │ (Port 8081)    │
+           └────────┬─────┘ └─────┬──────────┘
+                    │             │
+                    └──────┬──────┘
+                           ▼
+                   ┌─────────────────┐
+                   │   MCP Service   │
+                   │ (Protocol Impl) │
+                   └─────────────────┘
+                           │
+                           ▼
+                   ┌─────────────────┐
+                   │  OMDB Service   │◀─┐
+                   │ (External API)  │  │
+                   └─────────────────┘  │
+                           │            │
+                           ▼            │
+┌─────────────────┐ ┌─────────────────┐ │
+│ Cache Manager   │ │  Caffeine Cache │ │
+│   (Statistics)  │ │  (In-Memory)    │ │
+└─────────────────┘ └─────────────────┘ │
+        │                     ▲         │
+        │                     │         │
+        ▼              Cache Miss       │
+┌─────────────────┐          │          │
+│ Cache Endpoints │          │          │
+│ /cache/stats    │          ▼          │
+│ /cache/clear    │   ┌─────────────────┐│
+└─────────────────┘   │   OMDB API      ││
+                      │ (omdbapi.com)   ││
+                      └─────────────────┘│
+                           │            │
+                           └────────────┘
+                         Cache Hit
 ```
 
 ### Key Components
 - **🎮 McpController**: HTTP endpoint handling and request routing
+- **📡 StdioTransport**: Stdin/stdout communication for MCP clients like Claude Desktop
 - **🧠 McpService**: MCP protocol implementation and business logic
 - **🌐 OmdbService**: OMDB API integration with reactive WebClient and intelligent caching
 - **⚡ Cache Layer**: Caffeine-based in-memory caching with configurable TTL and LRU eviction
 - **📊 Cache Management**: REST endpoints for cache statistics and management
-- **📋 Model Classes**: Data structures for MCP and OMDB responses
+- **📋 Model Classes**: Data structures for MCP and OMDB responses with JSON Schema validation
 - **⚙️ Configuration**: Spring Boot auto-configuration and properties
 
 ### Security Features
@@ -231,8 +258,6 @@ Cache management endpoints:
 - `DELETE /cache/clear` - Clear all caches
 - `DELETE /cache/clear/{cacheName}` - Clear specific cache
 
-See [CACHING.md](CACHING.md) for detailed caching documentation.
-
 ### Docker Compose
 ```yaml
 version: '3.8'
@@ -249,6 +274,41 @@ services:
       timeout: 3s
       retries: 3
 ```
+
+### Stdio Transport for MCP Clients
+
+For AI clients like Claude Desktop, use the stdin/stdout transport method:
+
+**Command Line Usage**:
+```bash
+# Using JAR file
+java -jar omdb-mcp-server.jar --stdio
+
+# With environment variables
+OMDB_API_KEY=your-key java -jar omdb-mcp-server.jar --stdio
+
+# Using Maven
+OMDB_API_KEY=your-key ./mvnw spring-boot:run -Dspring-boot.run.arguments="--stdio"
+```
+
+**Claude Desktop Configuration** (`claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "omdb": {
+      "command": "java",
+      "args": ["-jar", "/path/to/omdb-mcp-server.jar", "--stdio"],
+      "env": {
+        "OMDB_API_KEY": "your-actual-api-key-here"
+      }
+    }
+  }
+}
+```
+
+**Transport Modes**:
+- **HTTP Mode** (default): For testing and web integration on port 8081
+- **Stdio Mode** (`--stdio` flag): For MCP clients using stdin/stdout communication
 
 ## MCP Tools
 
@@ -324,6 +384,15 @@ Get detailed information about a movie by IMDB ID.
 
 ## MCP Protocol Implementation
 
+This server implements the full MCP 2024-11-05 specification with the following capabilities:
+
+### Supported Methods
+- **initialize**: Server initialization and capability negotiation
+- **ping**: Connection testing and keep-alive
+- **tools/list**: Dynamic tool discovery with JSON Schema validation
+- **tools/call**: Tool execution with parameter validation
+- **notifications/initialized**: Client initialization completion
+
 ### Initialize
 ```json
 {
@@ -338,6 +407,34 @@ Get detailed information about a movie by IMDB ID.
       "version": "1.0.0"
     }
   }
+}
+```
+
+**Response**:
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "result": {
+    "protocolVersion": "2024-11-05",
+    "capabilities": {
+      "tools": {},
+      "logging": {}
+    },
+    "serverInfo": {
+      "name": "OMDB Movie Database Server",
+      "version": "1.0.0"
+    }
+  }
+}
+```
+
+### Ping
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "2",
+  "method": "ping"
 }
 ```
 
@@ -1009,5 +1106,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - 🐛 **Bug Reports**: [GitHub Issues](https://github.com/tyrell/omdb-mcp-server/issues)
 - 💡 **Feature Requests**: [GitHub Discussions](https://github.com/tyrell/omdb-mcp-server/discussions)
 - 📖 **Documentation**: [Project Wiki](https://github.com/tyrell/omdb-mcp-server/wiki)
-- ⚡ **Caching Guide**: [CACHING.md](CACHING.md) - Detailed caching implementation documentation
+- 🤖 **LLM Integration**: [LLM_INTEGRATION_GUIDE.md](LLM_INTEGRATION_GUIDE.md) - Detailed guide for AI assistant integration
 - 🔒 **Security Issues**: See [SECURITY.md](SECURITY.md)
