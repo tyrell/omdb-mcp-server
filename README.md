@@ -149,27 +149,27 @@ A Model Context Protocol (MCP) Server that provides access to the Open Movie Dat
                            │
                            ▼
                    ┌─────────────────┐
-                   │  OMDB Service   │◀─┐
-                   │ (External API)  │  │
-                   └─────────────────┘  │
-                           │            │
-                           ▼            │
-┌─────────────────┐ ┌─────────────────┐ │
-│ Cache Manager   │ │  Caffeine Cache │ │
-│   (Statistics)  │ │  (In-Memory)    │ │
-└─────────────────┘ └─────────────────┘ │
-        │                     ▲         │
-        │                     │         │
-        ▼              Cache Miss       │
-┌─────────────────┐          │          │
-│ Cache Endpoints │          │          │
-│ /cache/stats    │          ▼          │
-│ /cache/clear    │   ┌─────────────────┐│
-└─────────────────┘   │   OMDB API      ││
-                      │ (omdbapi.com)   ││
-                      └─────────────────┘│
-                           │            │
-                           └────────────┘
+                   │  OMDB Service   │◀--─┐
+                   │ (External API)  │    │
+                   └─────────────────┘    │
+                           │              │
+                           ▼              │
+┌─────────────────┐ ┌─────────────────┐   │
+│ Cache Manager   │ │  Caffeine Cache │   │
+│   (Statistics)  │ │  (In-Memory)    │   │
+└─────────────────┘ └─────────────────┘   │
+        │                     ▲           │
+        │                     │           │
+        ▼                 Cache Miss      │
+┌─────────────────┐           │           │
+│ Cache Endpoints │           │           │
+│ /cache/stats    │           ▼           │
+│ /cache/clear    │   ┌─────────────────┐ │
+└─────────────────┘   │   OMDB API      │ │
+                      │ (omdbapi.com)   │ │
+                      └─────────────────┘ │
+                           │              │
+                           └───────────--─┘
                          Cache Hit
 ```
 
