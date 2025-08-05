@@ -54,7 +54,8 @@ A Model Context Protocol (MCP) Server powered by **Spring AI** that provides acc
     - [Health Check](#health-check)
     - [Cache Performance Testing](#cache-performance-testing)
     - [MCP Protocol Testing](#mcp-protocol-testing)
-    - [🔍 Development \& Debugging](#-development--debugging)
+    - [� Comprehensive Testing Guide](MCP_TESTING_GUIDE.md)
+    - [�🔍 Development \& Debugging](#-development--debugging)
   - [🚀 CI/CD \& Deployment](#-cicd--deployment)
     - [Deployment Options](#deployment-options)
   - [📖 OpenAPI Documentation](#-openapi-documentation)
@@ -93,8 +94,7 @@ A Model Context Protocol (MCP) Server powered by **Spring AI** that provides acc
 
 ### 🔌 MCP Protocol Compliance
 - **MCP 2024-11-05**: Fully implements the latest MCP specification
-- **Multiple Transports**: Supports both HTTP REST and stdin/stdout communication
-- **SSE Transport**: Server-Sent Events transport for real-time MCP communication with AI clients
+- **HTTP JSON-RPC**: Direct HTTP transport optimized for web service integration
 - **JSON-RPC 2.0**: Standard protocol with proper error codes (-32700, -32600, -32601, -32602, -32603)
 - **Tool Discovery**: Dynamic tool listing with JSON Schema validation
 - **Enhanced Schemas**: Rich metadata, validation rules, and examples for better AI understanding
@@ -317,9 +317,8 @@ eventSource.onmessage = function(event) {
 };
 ```
 
-**Transport Modes**:
-- **SSE Mode** (default): Server-Sent Events at `/sse` for real-time MCP communication
-- **HTTP Mode**: REST endpoints for testing and web integration on port 8081
+**Transport Mode**:
+- **HTTP JSON-RPC**: MCP protocol over HTTP at `/mcp` endpoint on port 8081
 
 ## MCP Tools
 
@@ -581,6 +580,8 @@ curl -X POST http://localhost:8081/mcp \
     }
   }'
 ```
+
+> 📋 **For comprehensive testing approaches and alternatives to MCP Inspector, see [MCP_TESTING_GUIDE.md](MCP_TESTING_GUIDE.md)**
 
 ### 🔍 Development & Debugging
 

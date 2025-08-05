@@ -1,5 +1,6 @@
 package co.tyrell.omdb_mcp_server.service;
 
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -114,21 +115,32 @@ public class MovieSearchTools {
         return sb.toString();
     }
     
-    // Request record classes for type safety
+    // Request record classes for type safety with JSON Schema annotations
+    @Schema(description = "Request to search for movies by title")
     public record SearchMoviesRequest(
+        @Schema(description = "Movie title to search for", required = true)
         String title,
+        @Schema(description = "Release year (optional)")
         String year,
+        @Schema(description = "Type: movie, series, or episode (optional)")
         String type
     ) {}
     
+    @Schema(description = "Request to get detailed movie information")
     public record MovieDetailsRequest(
+        @Schema(description = "Movie title", required = true)
         String title,
+        @Schema(description = "Release year (optional)")
         String year,
+        @Schema(description = "Plot length: short or full (default: full)")
         String plot
     ) {}
     
+    @Schema(description = "Request to get movie by IMDB ID")
     public record MovieByImdbIdRequest(
+        @Schema(description = "IMDB ID (e.g., tt0133093)", required = true)
         String imdbId,
+        @Schema(description = "Plot length: short or full (default: full)")
         String plot
     ) {}
 }

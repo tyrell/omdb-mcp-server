@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Description;
 
 import java.util.List;
 import java.util.function.Function;
@@ -22,8 +23,9 @@ public class McpServerConfig {
     /**
      * Configure search movies tool function
      */
-    @Bean
-    public Function<MovieSearchTools.SearchMoviesRequest, String> searchMoviesFunction() {
+    @Bean("search_movies")
+    @Description("Search for movies by title with optional year and type filters")
+    public Function<MovieSearchTools.SearchMoviesRequest, String> searchMovies() {
         log.info("Registering searchMovies function for Spring AI MCP server");
         return request -> movieSearchTools.searchMovies(request.title(), request.year(), request.type());
     }
@@ -31,8 +33,9 @@ public class McpServerConfig {
     /**
      * Configure get movie details tool function
      */
-    @Bean
-    public Function<MovieSearchTools.MovieDetailsRequest, String> getMovieDetailsFunction() {
+    @Bean("get_movie_details")
+    @Description("Get detailed information about a specific movie by title")
+    public Function<MovieSearchTools.MovieDetailsRequest, String> getMovieDetails() {
         log.info("Registering getMovieDetails function for Spring AI MCP server");
         return request -> movieSearchTools.getMovieDetails(request.title(), request.year(), request.plot());
     }
@@ -40,8 +43,9 @@ public class McpServerConfig {
     /**
      * Configure get movie by IMDB ID tool function
      */
-    @Bean
-    public Function<MovieSearchTools.MovieByImdbIdRequest, String> getMovieByImdbIdFunction() {
+    @Bean("get_movie_by_imdb_id")
+    @Description("Get detailed movie information using IMDB ID")
+    public Function<MovieSearchTools.MovieByImdbIdRequest, String> getMovieByImdbId() {
         log.info("Registering getMovieByImdbId function for Spring AI MCP server");
         return request -> movieSearchTools.getMovieByImdbId(request.imdbId(), request.plot());
     }

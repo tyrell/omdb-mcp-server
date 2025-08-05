@@ -1,5 +1,6 @@
 package co.tyrell.omdb_mcp_server.model.mcp;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Data;
 
@@ -7,6 +8,7 @@ import lombok.Data;
  * Base MCP response structure
  */
 @Data
+@JsonInclude(JsonInclude.Include.NON_NULL)
 @Schema(description = "Model Context Protocol JSON-RPC 2.0 response")
 public class McpResponse {
     @Schema(description = "JSON-RPC version", example = "2.0", defaultValue = "2.0")
